@@ -72,9 +72,12 @@ export function ProjectList({ projects, userId, onCreate, onDelete, onOpen }: Pr
       )}
 
       {projects.length === 0 ? (
-        <p className="text-gray-400 text-center py-12">
-          아직 프로젝트가 없어요. 새 프로젝트를 만들어보세요!
-        </p>
+        <div className="flex flex-col items-center py-12">
+          <img src="/forgi-empty-t.png" alt="Forgi" className="h-48 mb-4 opacity-80" />
+          <p className="text-gray-400">
+            아직 프로젝트가 없어요. 새 프로젝트를 만들어보세요!
+          </p>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((p) => (

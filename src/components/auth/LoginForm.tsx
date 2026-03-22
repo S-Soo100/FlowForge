@@ -64,8 +64,15 @@ export function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-sm p-8 bg-white rounded-xl shadow-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 relative overflow-hidden">
+      {/* 포지 캐릭터 — 왼쪽 하단 */}
+      <img
+        src="/forgi-wave-t.png"
+        alt="Forgi"
+        className="absolute bottom-0 left-8 h-[70vh] max-h-[600px] object-contain opacity-90 pointer-events-none select-none hidden lg:block"
+      />
+
+      <div className="w-full max-w-sm p-8 bg-white/95 backdrop-blur-sm rounded-xl shadow-md relative z-10">
         <h1 className="text-2xl font-bold text-center mb-6">
           🔥 FlowForge
         </h1>

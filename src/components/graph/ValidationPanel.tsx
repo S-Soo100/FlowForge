@@ -37,11 +37,15 @@ export function ValidationPanel({ warnings, onClose }: Props) {
       </div>
 
       {warnings.length === 0 ? (
-        <div className="p-4 text-center text-sm text-gray-400">
-          ✅ 문제 없음!
+        <div className="p-6 flex flex-col items-center text-center">
+          <img src="/forgi-success-t.png" alt="Success" className="h-36 mb-3" />
+          <p className="text-sm text-gray-500 font-medium">문제 없음!</p>
         </div>
       ) : (
         <div className="p-2 space-y-1">
+          <div className="flex justify-center py-2">
+            <img src="/forgi-error-t.png" alt="Warning" className="h-24 opacity-70" />
+          </div>
           {[...grouped.errors, ...grouped.warns, ...grouped.info].map((w, i) => (
             <button
               key={i}
