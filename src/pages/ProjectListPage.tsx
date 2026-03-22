@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useProject } from '../hooks/useProject';
+import { useProfile } from '../hooks/useProfile';
 import { ProjectList } from '../components/project/ProjectList';
 
 export function ProjectListPage() {
   const { user, signOut } = useAuth();
   const { projects, loading, createProject, deleteProject } = useProject(user?.id);
+  const profile = useProfile(user?.id);
   const navigate = useNavigate();
 
   if (loading) {
@@ -29,7 +31,7 @@ export function ProjectListPage() {
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between relative z-10">
         <h1 className="text-lg font-bold text-gray-800"><img src="/forgi-icon-t.png" alt="Forgi" className="inline-block h-7 mr-1 -mt-0.5" />FlowForge</h1>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">{user?.email}</span>
+          <span className="text-sm text-gray-500">{profile?.display_name || user?.email}</span>
           <button
             onClick={signOut}
             className="text-sm text-gray-400 hover:text-gray-600"

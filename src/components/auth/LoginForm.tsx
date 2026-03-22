@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 
 export function LoginForm() {
   const { signInWithEmail, signUp } = useAuth();
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -25,7 +26,7 @@ export function LoginForm() {
     setLoading(true);
 
     if (isSignUp) {
-      const { error } = await signUp(email, password);
+      const { error } = await signUp(email, password, displayName);
       if (error) {
         setError(error.message);
       } else {
@@ -81,6 +82,16 @@ export function LoginForm() {
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isSignUp && (
+            <input
+              type="text"
+              placeholder="이름 (닉네임)"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          )}
           <input
             type="email"
             placeholder="이메일"
@@ -144,7 +155,7 @@ export function LoginForm() {
         </form>
 
         <button
-          onClick={() => { setIsSignUp(!isSignUp); setError(null); setConfirmPassword(''); }}
+          onClick={() => { setIsSignUp(!isSignUp); setError(null); setConfirmPassword(''); setDisplayName(''); }}
           className="w-full mt-4 text-sm text-gray-500 hover:text-gray-700"
         >
           {isSignUp ? '이미 계정이 있나요? 로그인' : '계정이 없나요? 회원가입'}

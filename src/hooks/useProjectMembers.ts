@@ -27,10 +27,21 @@ export function useProjectMembers(projectId: string) {
       return;
     }
 
+    // 프로필에서 이름 조회
+    const userIds = data.map((m) => m.user_id);
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, display_name')
+      .in('id', userIds);
+
+    const profileMap = new Map(
+      (profiles ?? []).map((p) => [p.id, p.display_name])
+    );
+
     const memberInfos: MemberInfo[] = data.map((m) => ({
       id: m.id,
       user_id: m.user_id,
-      email: m.email || m.user_id.slice(0, 8) + '...',
+      email: profileMap.get(m.user_id) || m.email || m.user_id.slice(0, 8) + '...',
       role: m.role as ProjectRole,
     }));
 
