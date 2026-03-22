@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { TriggerEditor } from './TriggerEditor';
 import { ContentEditor } from './ContentEditor';
 import { EffectEditor } from './EffectEditor';
 import { EVENT_TYPES, EVENT_TYPE_CONFIG, type EventData, type EventType } from '../../types';
@@ -107,13 +106,6 @@ export function EventDetailPanel({ nodeId, data, onSave, onDelete, onClose }: Pr
             })}
           </div>
         </div>
-
-        <hr className="border-gray-100" />
-
-        <TriggerEditor
-          trigger={eventData.trigger}
-          onChange={(trigger) => setEventData({ ...eventData, trigger })}
-        />
 
         <hr className="border-gray-100" />
 

@@ -51,8 +51,8 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
   // 모든 엣지에 화살표 기본 적용
   const defaultEdgeOptions: DefaultEdgeOptions = useMemo(
     () => ({
-      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-      style: { strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#6b7280' },
+      style: { strokeWidth: 2, stroke: '#6b7280' },
     }),
     []
   );

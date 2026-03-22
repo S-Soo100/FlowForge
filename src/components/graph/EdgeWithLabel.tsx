@@ -4,7 +4,6 @@ import {
   EdgeLabelRenderer,
   getBezierPath,
   type EdgeProps,
-  MarkerType,
 } from '@xyflow/react';
 
 interface Props extends EdgeProps {
@@ -70,8 +69,7 @@ export function EdgeWithLabel({
     <>
       <BaseEdge
         path={edgePath}
-        style={{ ...style, strokeWidth: 2 }}
-        markerEnd={MarkerType.ArrowClosed}
+        style={style}
       />
       <EdgeLabelRenderer>
         <div

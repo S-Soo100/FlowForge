@@ -8,7 +8,6 @@ function EventNodeComponent({ data }: NodeProps) {
   const eventType: EventType = nodeData.eventData?.eventType ?? 'other';
   const typeConfig = EVENT_TYPE_CONFIG[eventType];
   const hasContent = nodeData.eventData?.content;
-  const hasTrigger = nodeData.eventData?.trigger?.type;
   const effectCount = nodeData.eventData?.effects?.length ?? 0;
 
   return (
@@ -39,14 +38,9 @@ function EventNodeComponent({ data }: NodeProps) {
         )}
       </div>
 
-      {/* 하단: 조건/효과 요약 */}
-      {(hasTrigger || hasContent || effectCount > 0) && (
+      {/* 하단: 콘텐츠/효과 요약 */}
+      {(hasContent || effectCount > 0) && (
         <div className="px-3 pb-2 pt-1 border-t border-gray-100 space-y-0.5">
-          {hasTrigger && (
-            <div className="text-[10px] text-gray-500 truncate">
-              ▸ 조건: {nodeData.eventData.trigger!.type}
-            </div>
-          )}
           {hasContent && (
             <div className="text-[10px] text-gray-500 truncate">
               ▸ 콘텐츠 있음
