@@ -1,14 +1,18 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useProject } from '../hooks/useProject';
 import { useProfile } from '../hooks/useProfile';
 import { ProjectList } from '../components/project/ProjectList';
+import { ProfileDropdown } from '../components/profile/ProfileDropdown';
+import { ProfileModal } from '../components/profile/ProfileModal';
 
 export function ProjectListPage() {
   const { user, signOut } = useAuth();
   const { projects, loading, createProject, deleteProject } = useProject(user?.id);
-  const profile = useProfile(user?.id);
+  const { profile, refresh: refreshProfile } = useProfile(user?.id);
   const navigate = useNavigate();
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   if (loading) {
     return (
@@ -29,16 +33,16 @@ export function ProjectListPage() {
       />
 
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between relative z-10">
-        <h1 className="text-lg font-bold text-gray-800"><img src="/forgi-icon-t.png" alt="Forgi" className="inline-block h-7 mr-1 -mt-0.5" />FlowForge</h1>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">{profile?.display_name || user?.email}</span>
-          <button
-            onClick={signOut}
-            className="text-sm text-gray-400 hover:text-gray-600"
-          >
-            로그아웃
-          </button>
-        </div>
+        <h1 className="text-lg font-bold text-gray-800">
+          <img src="/forgi-icon-t.png" alt="Forgi" className="inline-block h-7 mr-1 -mt-0.5" />
+          FlowForge
+        </h1>
+        <ProfileDropdown
+          profile={profile}
+          email={user?.email ?? ''}
+          onEditProfile={() => setShowProfileModal(true)}
+          onSignOut={signOut}
+        />
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-8">
@@ -50,6 +54,15 @@ export function ProjectListPage() {
           onOpen={(id) => navigate(`/project/${id}`)}
         />
       </main>
+
+      {showProfileModal && profile && (
+        <ProfileModal
+          profile={profile}
+          email={user?.email ?? ''}
+          onClose={() => setShowProfileModal(false)}
+          onSaved={refreshProfile}
+        />
+      )}
     </div>
   );
 }

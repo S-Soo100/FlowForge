@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
 export interface Profile {
@@ -11,18 +11,21 @@ export interface Profile {
 export function useProfile(userId: string | undefined) {
   const [profile, setProfile] = useState<Profile | null>(null);
 
-  useEffect(() => {
+  const fetchProfile = useCallback(async () => {
     if (!userId) return;
 
-    supabase
+    const { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setProfile(data as Profile);
-      });
+      .maybeSingle();
+
+    if (data) setProfile(data as Profile);
   }, [userId]);
 
-  return profile;
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  return { profile, refresh: fetchProfile };
 }
