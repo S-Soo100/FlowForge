@@ -63,8 +63,8 @@ export function useEventGraph(projectId: string) {
   }, [load]);
 
   // ── React Flow 변경 핸들러 ──
-  const onNodesChange: OnNodesChange = useCallback(
-    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
+  const onNodesChange: OnNodesChange<Node<EventNodeData>> = useCallback(
+    (changes) => setNodes((nds) => applyNodeChanges(changes, nds) as Node<EventNodeData>[]),
     []
   );
 

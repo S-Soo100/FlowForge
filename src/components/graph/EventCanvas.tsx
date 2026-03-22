@@ -6,7 +6,7 @@ import {
   MiniMap,
   type NodeTypes,
   type EdgeTypes,
-  type NodeDragHandler,
+  type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -37,8 +37,8 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
     [graph.updateEdgeLabel, graph.deleteEdge]
   );
 
-  const onNodeDragStop: NodeDragHandler = useCallback(
-    (_event, node) => {
+  const onNodeDragStop = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
       graph.updateNodePosition(node.id, node.position.x, node.position.y);
     },
     [graph.updateNodePosition]
