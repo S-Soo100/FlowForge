@@ -6,17 +6,19 @@ interface Props {
   onImport: () => void;
   onAutoLayout: () => void;
   onValidate: () => void;
+  onSettings: () => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  isReadOnly: boolean;
   projectName: string;
   onBack: () => void;
 }
 
 export function Toolbar({
-  onAddEvent, onExport, onImport, onAutoLayout, onValidate,
-  onUndo, onRedo, canUndo, canRedo,
+  onAddEvent, onExport, onImport, onAutoLayout, onValidate, onSettings,
+  onUndo, onRedo, canUndo, canRedo, isReadOnly,
   projectName, onBack,
 }: Props) {
   return (
@@ -53,12 +55,14 @@ export function Toolbar({
 
         <div className="w-px h-6 bg-gray-200" />
 
-        <button
-          onClick={onAddEvent}
-          className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
-        >
-          + 이벤트
-        </button>
+        {!isReadOnly && (
+          <button
+            onClick={onAddEvent}
+            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
+          >
+            + 이벤트
+          </button>
+        )}
         <button
           onClick={onAutoLayout}
           className="px-3 py-1.5 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition"
@@ -87,6 +91,16 @@ export function Toolbar({
           className="px-3 py-1.5 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition"
         >
           📥 Export
+        </button>
+
+        <div className="w-px h-6 bg-gray-200" />
+
+        <button
+          onClick={onSettings}
+          className="px-3 py-1.5 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition"
+          title="프로젝트 설정"
+        >
+          ⚙
         </button>
       </div>
     </div>

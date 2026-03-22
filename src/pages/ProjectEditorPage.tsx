@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
 import { useEventGraph } from '../hooks/useEventGraph';
 import { useHistory } from '../hooks/useHistory';
+import { useProjectRole } from '../hooks/useProjectRole';
 import { EventCanvas } from '../components/graph/EventCanvas';
 import { EventDetailPanel } from '../components/detail/EventDetailPanel';
 import { ValidationPanel } from '../components/graph/ValidationPanel';
+import { ProjectSettingsPanel } from '../components/project/ProjectSettingsPanel';
 import { Toolbar } from '../components/graph/Toolbar';
 import { AddEventModal } from '../components/graph/AddEventModal';
 import { exportProject, downloadJson } from '../lib/exportProject';
@@ -19,15 +22,18 @@ import type { EventNodeData } from '../hooks/useEventGraph';
 function EditorContent() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { fitView, setNodes: rfSetNodes } = useReactFlow();
   const [project, setProject] = useState<Project | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [validationWarnings, setValidationWarnings] = useState<ValidationWarning[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const graph = useEventGraph(projectId!);
   const history = useHistory();
+  const { canEdit, loading: roleLoading } = useProjectRole(projectId!, user?.id);
 
   useEffect(() => {
     supabase
@@ -90,7 +96,6 @@ function EditorContent() {
     history.pushSnapshot(graph.nodes, graph.edges);
     const laid = getAutoLayout(graph.nodes, graph.edges);
     rfSetNodes(laid);
-    // DB에도 위치 저장
     for (const node of laid) {
       graph.updateNodePosition(node.id, node.position.x, node.position.y);
     }
@@ -102,6 +107,7 @@ function EditorContent() {
     const warnings = validateGraph(graph.nodes, graph.edges);
     setValidationWarnings(warnings);
     setSelectedNodeId(null);
+    setShowSettings(false);
   }, [graph.nodes, graph.edges]);
 
   // ── Undo/Redo ──
@@ -125,6 +131,7 @@ function EditorContent() {
   const handleNodeDoubleClick = useCallback((nodeId: string) => {
     setSelectedNodeId(nodeId);
     setValidationWarnings(null);
+    setShowSettings(false);
   }, []);
 
   // ── 이벤트 삭제 (히스토리 포함) ──
@@ -139,24 +146,28 @@ function EditorContent() {
     await graph.updateEvent(nodeId, updates);
   }, [graph, history]);
 
+  // ── 설정 패널 ──
+  const handleSettings = useCallback(() => {
+    setShowSettings(true);
+    setSelectedNodeId(null);
+    setValidationWarnings(null);
+  }, []);
+
   // ── 키보드 단축키 ──
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Ctrl+Z: Undo
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
       }
-      // Ctrl+Y or Ctrl+Shift+Z: Redo
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault();
         handleRedo();
       }
-      // Ctrl+F: Search (handled by SearchBar focus)
-      // Escape: Close panels
       if (e.key === 'Escape') {
         setSelectedNodeId(null);
         setValidationWarnings(null);
+        setShowSettings(false);
       }
     };
 
@@ -168,7 +179,7 @@ function EditorContent() {
     ? graph.nodes.find((n) => n.id === selectedNodeId)
     : null;
 
-  if (!project || graph.loading) {
+  if (!project || graph.loading || roleLoading) {
     return (
       <div className="h-screen flex items-center justify-center">
         <p className="text-gray-400">로딩중...</p>
@@ -176,8 +187,17 @@ function EditorContent() {
     );
   }
 
+  const isReadOnly = !canEdit;
+
   return (
     <div className="h-screen flex flex-col">
+      {/* Viewer 배너 */}
+      {isReadOnly && (
+        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-1.5 text-xs text-yellow-700 text-center">
+          읽기 전용 — 편집 권한이 없습니다
+        </div>
+      )}
+
       <Toolbar
         projectName={project.name}
         onAddEvent={() => setShowAddModal(true)}
@@ -185,10 +205,12 @@ function EditorContent() {
         onImport={handleImport}
         onAutoLayout={handleAutoLayout}
         onValidate={handleValidate}
+        onSettings={handleSettings}
         onUndo={handleUndo}
         onRedo={handleRedo}
-        canUndo={history.canUndo}
-        canRedo={history.canRedo}
+        canUndo={history.canUndo && canEdit}
+        canRedo={history.canRedo && canEdit}
+        isReadOnly={isReadOnly}
         onBack={() => navigate('/')}
       />
 
@@ -217,9 +239,17 @@ function EditorContent() {
             onClose={() => setValidationWarnings(null)}
           />
         )}
+
+        {showSettings && project && user && (
+          <ProjectSettingsPanel
+            project={project}
+            currentUserId={user.id}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
       </div>
 
-      {showAddModal && (
+      {showAddModal && canEdit && (
         <AddEventModal
           onSubmit={handleAddEvent}
           onClose={() => setShowAddModal(false)}
