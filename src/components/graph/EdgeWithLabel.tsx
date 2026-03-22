@@ -12,6 +12,17 @@ interface Props extends EdgeProps {
   onDelete?: (edgeId: string) => void;
 }
 
+/** 쉼표 구분 문자열 → 태그 배열 */
+function parseTags(label: string | undefined): string[] {
+  if (!label) return [];
+  return label.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/** 태그 배열 → 쉼표 구분 문자열 */
+function joinTags(tags: string[]): string {
+  return tags.join(', ');
+}
+
 export function EdgeWithLabel({
   id,
   sourceX,
@@ -25,13 +36,9 @@ export function EdgeWithLabel({
   onLabelChange,
   onDelete,
 }: Props) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState((label as string) ?? '');
-
-  // label이 외부에서 바뀌면 동기화
-  useEffect(() => {
-    setValue((label as string) ?? '');
-  }, [label]);
+  const [adding, setAdding] = useState(false);
+  const [newTag, setNewTag] = useState('');
+  const tags = parseTags(label as string);
 
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -42,9 +49,21 @@ export function EdgeWithLabel({
     targetPosition,
   });
 
-  const handleBlur = () => {
-    setEditing(false);
-    onLabelChange?.(id, value);
+  const saveTag = () => {
+    const trimmed = newTag.trim();
+    if (!trimmed) {
+      setAdding(false);
+      return;
+    }
+    const updated = [...tags, trimmed];
+    onLabelChange?.(id, joinTags(updated));
+    setNewTag('');
+    setAdding(false);
+  };
+
+  const removeTag = (index: number) => {
+    const updated = tags.filter((_, i) => i !== index);
+    onLabelChange?.(id, joinTags(updated));
   };
 
   return (
@@ -56,36 +75,59 @@ export function EdgeWithLabel({
       />
       <EdgeLabelRenderer>
         <div
-          className="absolute flex items-center gap-1 pointer-events-auto"
+          className="absolute pointer-events-auto"
           style={{
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
           }}
         >
-          {editing ? (
-            <input
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onBlur={handleBlur}
-              onKeyDown={(e) => e.key === 'Enter' && handleBlur()}
-              autoFocus
-              className="text-xs px-2 py-0.5 border border-blue-400 rounded bg-white w-28 focus:outline-none"
-              placeholder="조건 (쉼표로 구분)"
-            />
-          ) : (
-            <button
-              onClick={() => setEditing(true)}
-              className="text-xs px-2 py-0.5 bg-yellow-50 border border-yellow-300 rounded hover:bg-yellow-100 text-gray-700 max-w-[160px] truncate"
-            >
-              {label || '조건 추가'}
-            </button>
-          )}
+          <div className="flex flex-col items-center gap-1">
+            {/* 조건 태그들 */}
+            {tags.map((tag, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-0.5 text-[11px] px-2 py-0.5 bg-yellow-50 border border-yellow-300 rounded-full text-gray-700"
+              >
+                {tag}
+                <button
+                  onClick={() => removeTag(i)}
+                  className="text-gray-400 hover:text-red-500 ml-0.5"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
 
+            {/* 추가 입력 */}
+            {adding ? (
+              <input
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                onBlur={saveTag}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveTag();
+                  if (e.key === 'Escape') { setAdding(false); setNewTag(''); }
+                }}
+                autoFocus
+                className="text-[11px] px-2 py-0.5 border border-blue-400 rounded-full bg-white w-20 focus:outline-none"
+                placeholder="조건..."
+              />
+            ) : (
+              <button
+                onClick={() => setAdding(true)}
+                className="text-[9px] w-4 h-4 bg-gray-100 border border-gray-300 rounded-full hover:bg-gray-200 text-gray-400 flex items-center justify-center leading-none"
+              >
+                +
+              </button>
+            )}
+          </div>
+
+          {/* 연결 삭제 */}
           <button
             onClick={() => onDelete?.(id)}
-            className="text-xs text-gray-400 hover:text-red-500"
+            className="absolute -top-2 -right-2 w-4 h-4 bg-white border border-gray-300 rounded-full text-[10px] text-gray-400 hover:text-red-500 hover:border-red-300 flex items-center justify-center"
             title="연결 삭제"
           >
-            ✕
+            ×
           </button>
         </div>
       </EdgeLabelRenderer>

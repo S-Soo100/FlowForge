@@ -42,7 +42,7 @@ export function EventDetailPanel({ nodeId, data, onSave, onDelete, onClose }: Pr
   const eventType: EventType = eventData.eventType ?? 'other';
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col shrink-0 overflow-y-auto">
+    <div className="w-[420px] bg-white border-l border-gray-200 flex flex-col shrink-0 overflow-y-auto">
       {/* 헤더 */}
       <div className="p-4 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
