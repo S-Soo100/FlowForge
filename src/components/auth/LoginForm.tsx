@@ -9,6 +9,7 @@ export function LoginForm() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [signUpDone, setSignUpDone] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,13 +22,46 @@ export function LoginForm() {
 
     setLoading(true);
 
-    const { error } = isSignUp
-      ? await signUp(email, password)
-      : await signInWithEmail(email, password);
-
-    if (error) setError(error.message);
+    if (isSignUp) {
+      const { error } = await signUp(email, password);
+      if (error) {
+        setError(error.message);
+      } else {
+        setSignUpDone(true);
+      }
+    } else {
+      const { error } = await signInWithEmail(email, password);
+      if (error) setError(error.message);
+    }
     setLoading(false);
   };
+
+  if (signUpDone) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-full max-w-sm p-8 bg-white rounded-xl shadow-md text-center">
+          <div className="text-5xl mb-4">📧</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">메일을 확인해주세요</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            <span className="font-medium text-gray-700">{email}</span>으로
+            확인 메일을 보냈어요.<br />
+            메일의 링크를 클릭하면 가입이 완료됩니다.
+          </p>
+          <button
+            onClick={() => {
+              setSignUpDone(false);
+              setIsSignUp(false);
+              setPassword('');
+              setConfirmPassword('');
+            }}
+            className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            확인 완료 → 로그인하기
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
