@@ -181,10 +181,16 @@ export function useEventGraph(projectId: string) {
     []
   );
 
-  // ── 엣지 연결 ──
+  // ── 엣지 연결 (중복 방지) ──
   const onConnect: OnConnect = useCallback(
     async (params) => {
       if (!params.source || !params.target) return;
+
+      // 같은 source→target 엣지가 이미 있으면 무시
+      const duplicate = edges.find(
+        (e) => e.source === params.source && e.target === params.target
+      );
+      if (duplicate) return;
 
       const { data, error } = await supabase
         .from('event_edges')

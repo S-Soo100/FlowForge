@@ -69,4 +69,7 @@ function EventNodeComponent({ data }: NodeProps) {
   );
 }
 
-export const EventNode = memo(EventNodeComponent);
+// eventData 내부 변경도 감지하기 위해 JSON 비교
+export const EventNode = memo(EventNodeComponent, (prev, next) => {
+  return JSON.stringify(prev.data) === JSON.stringify(next.data);
+});

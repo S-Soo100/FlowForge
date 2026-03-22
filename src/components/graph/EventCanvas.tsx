@@ -1,17 +1,20 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ReactFlow,
   Background,
   Controls,
   MiniMap,
+  MarkerType,
   type NodeTypes,
   type EdgeTypes,
   type Node,
+  type DefaultEdgeOptions,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import { EventNode } from './EventNode';
 import { EdgeWithLabel } from './EdgeWithLabel';
+import { NodeContextMenu } from './NodeContextMenu';
 import type { useEventGraph } from '../../hooks/useEventGraph';
 
 type GraphHook = ReturnType<typeof useEventGraph>;
@@ -21,7 +24,15 @@ interface Props {
   onNodeDoubleClick: (nodeId: string) => void;
 }
 
+interface ContextMenuState {
+  nodeId: string;
+  x: number;
+  y: number;
+}
+
 export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+
   const nodeTypes: NodeTypes = useMemo(() => ({ eventNode: EventNode }), []);
 
   const edgeTypes: EdgeTypes = useMemo(
@@ -35,6 +46,15 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
       ),
     }),
     [graph.updateEdgeLabel, graph.deleteEdge]
+  );
+
+  // 모든 엣지에 화살표 기본 적용
+  const defaultEdgeOptions: DefaultEdgeOptions = useMemo(
+    () => ({
+      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
+      style: { strokeWidth: 2 },
+    }),
+    []
   );
 
   const onNodeDragStop = useCallback(
@@ -51,6 +71,18 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
     [onNodeDoubleClick]
   );
 
+  const handleNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: { id: string }) => {
+      event.preventDefault();
+      setContextMenu({ nodeId: node.id, x: event.clientX, y: event.clientY });
+    },
+    []
+  );
+
+  const handlePaneClick = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
   return (
     <div className="flex-1">
       <ReactFlow
@@ -58,11 +90,14 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
         edges={graph.edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        defaultEdgeOptions={defaultEdgeOptions}
         onNodesChange={graph.onNodesChange}
         onEdgesChange={graph.onEdgesChange}
         onConnect={graph.onConnect}
         onNodeDragStop={onNodeDragStop}
         onNodeDoubleClick={handleNodeDoubleClick}
+        onNodeContextMenu={handleNodeContextMenu}
+        onPaneClick={handlePaneClick}
         fitView
         deleteKeyCode="Delete"
         className="bg-gray-50"
@@ -74,6 +109,17 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
           className="!bg-white !border-gray-200"
         />
       </ReactFlow>
+
+      {contextMenu && (
+        <NodeContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          nodeId={contextMenu.nodeId}
+          onEdit={onNodeDoubleClick}
+          onDelete={graph.deleteEvent}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 }
