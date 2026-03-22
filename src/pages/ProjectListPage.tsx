@@ -18,9 +18,16 @@ export function ProjectListPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-lg font-bold text-gray-800">🔥 FlowForge</h1>
+    <div className="min-h-screen bg-gray-50 relative overflow-hidden">
+      {/* 포지 — 우측 하단 */}
+      <img
+        src="/forgi-empty-t.png"
+        alt="Forgi"
+        className="fixed bottom-0 right-4 h-[45vh] max-h-[400px] object-contain opacity-80 pointer-events-none select-none hidden md:block"
+      />
+
+      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between relative z-10">
+        <h1 className="text-lg font-bold text-gray-800"><img src="/forgi-icon-t.png" alt="Forgi" className="inline-block h-7 mr-1 -mt-0.5" />FlowForge</h1>
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-500">{user?.email}</span>
           <button

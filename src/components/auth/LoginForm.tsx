@@ -74,7 +74,8 @@ export function LoginForm() {
 
       <div className="w-full max-w-sm p-8 bg-white/95 backdrop-blur-sm rounded-xl shadow-md relative z-10">
         <h1 className="text-2xl font-bold text-center mb-6">
-          🔥 FlowForge
+          <img src="/forgi-icon-t.png" alt="Forgi" className="inline-block h-8 mr-1 -mt-1" />
+          FlowForge
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
