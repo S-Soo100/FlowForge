@@ -100,6 +100,10 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
         onPaneClick={handlePaneClick}
         fitView
         deleteKeyCode="Delete"
+        selectionOnDrag
+        panOnDrag={[1, 2]}
+        selectionMode={1}
+        multiSelectionKeyCode="Shift"
         className="bg-gray-50"
       >
         <Background gap={20} size={1} />
