@@ -16,7 +16,9 @@ export function exportProject(
 
     return {
       id: node.id,
+      displayId: data.displayId,
       name: data.label,
+      type: data.eventData?.eventType,
       description: data.description,
       trigger: data.eventData?.trigger,
       content: data.eventData?.content,
@@ -26,6 +28,7 @@ export function exportProject(
         const targetData = targetNode?.data as unknown as EventNodeData | undefined;
         return {
           target: e.target,
+          targetDisplayId: targetData?.displayId,
           targetName: targetData?.label,
           condition: (e.label as string) || undefined,
         };

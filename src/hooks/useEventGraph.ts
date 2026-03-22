@@ -7,6 +7,7 @@ import type { GameEvent, GameEventEdge, EventData } from '../types';
 /** React Flow 노드의 data 타입 */
 export interface EventNodeData {
   label: string;
+  displayId: string;    // EVT-001
   description?: string;
   eventData: EventData;
   dbId: string; // supabase row id
@@ -37,6 +38,7 @@ export function useEventGraph(projectId: string) {
         position: { x: ev.position_x, y: ev.position_y },
         data: {
           label: ev.name,
+          displayId: ev.display_id ?? 'EVT-???',
           description: ev.description,
           eventData: ev.event_data ?? {},
           dbId: ev.id,
@@ -84,17 +86,37 @@ export function useEventGraph(projectId: string) {
     []
   );
 
+  // ── 다음 display_id 계산 ──
+  const getNextDisplayId = useCallback(async (): Promise<string> => {
+    const { data } = await supabase
+      .from('events')
+      .select('display_id')
+      .eq('project_id', projectId)
+      .order('display_id', { ascending: false })
+      .limit(1);
+
+    if (!data || data.length === 0) return 'EVT-001';
+
+    const last = (data[0] as GameEvent).display_id;
+    const match = last?.match(/EVT-(\d+)/);
+    const nextNum = match ? parseInt(match[1], 10) + 1 : 1;
+    return `EVT-${String(nextNum).padStart(3, '0')}`;
+  }, [projectId]);
+
   // ── 새 이벤트 추가 ──
   const addEvent = useCallback(
-    async (name: string, x: number, y: number) => {
+    async (name: string, x: number, y: number, eventType: import('../types').EventType = 'other') => {
+      const displayId = await getNextDisplayId();
+
       const { data, error } = await supabase
         .from('events')
         .insert({
           project_id: projectId,
           name,
+          display_id: displayId,
           position_x: x,
           position_y: y,
-          event_data: {},
+          event_data: { eventType },
         })
         .select()
         .single();
@@ -110,6 +132,7 @@ export function useEventGraph(projectId: string) {
           position: { x: ev.position_x, y: ev.position_y },
           data: {
             label: ev.name,
+            displayId: ev.display_id,
             description: ev.description,
             eventData: ev.event_data ?? {},
             dbId: ev.id,
@@ -119,7 +142,7 @@ export function useEventGraph(projectId: string) {
 
       return ev;
     },
-    [projectId]
+    [projectId, getNextDisplayId]
   );
 
   // ── 이벤트 삭제 ──

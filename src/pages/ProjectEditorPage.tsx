@@ -6,8 +6,9 @@ import { useEventGraph } from '../hooks/useEventGraph';
 import { EventCanvas } from '../components/graph/EventCanvas';
 import { EventDetailPanel } from '../components/detail/EventDetailPanel';
 import { Toolbar } from '../components/graph/Toolbar';
+import { AddEventModal } from '../components/graph/AddEventModal';
 import { exportProject, downloadJson } from '../lib/exportProject';
-import type { Project } from '../types';
+import type { Project, EventType } from '../types';
 import type { EventNodeData } from '../hooks/useEventGraph';
 
 function EditorContent() {
@@ -15,6 +16,7 @@ function EditorContent() {
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const graph = useEventGraph(projectId!);
 
@@ -27,14 +29,11 @@ function EditorContent() {
       .then(({ data }) => setProject(data as Project));
   }, [projectId]);
 
-  const handleAddEvent = useCallback(async () => {
-    const name = prompt('이벤트 이름:');
-    if (!name?.trim()) return;
-
-    // 캔버스 중앙 부근에 배치
+  const handleAddEvent = useCallback(async (name: string, eventType: EventType) => {
     const x = 250 + Math.random() * 200;
     const y = 100 + graph.nodes.length * 120;
-    await graph.addEvent(name.trim(), x, y);
+    await graph.addEvent(name, x, y, eventType);
+    setShowAddModal(false);
   }, [graph]);
 
   const handleExport = useCallback(() => {
@@ -68,7 +67,7 @@ function EditorContent() {
     <div className="h-screen flex flex-col">
       <Toolbar
         projectName={project.name}
-        onAddEvent={handleAddEvent}
+        onAddEvent={() => setShowAddModal(true)}
         onExport={handleExport}
         onBack={() => navigate('/')}
       />
@@ -89,6 +88,13 @@ function EditorContent() {
           />
         )}
       </div>
+
+      {showAddModal && (
+        <AddEventModal
+          onSubmit={handleAddEvent}
+          onClose={() => setShowAddModal(false)}
+        />
+      )}
     </div>
   );
 }

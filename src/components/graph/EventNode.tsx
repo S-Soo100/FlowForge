@@ -1,40 +1,64 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { EventNodeData } from '../../hooks/useEventGraph';
+import { EVENT_TYPE_CONFIG, type EventType } from '../../types';
 
 function EventNodeComponent({ data }: NodeProps) {
   const nodeData = data as unknown as EventNodeData;
+  const eventType: EventType = nodeData.eventData?.eventType ?? 'other';
+  const typeConfig = EVENT_TYPE_CONFIG[eventType];
   const hasContent = nodeData.eventData?.content;
+  const hasTrigger = nodeData.eventData?.trigger?.type;
   const effectCount = nodeData.eventData?.effects?.length ?? 0;
 
   return (
-    <div className="bg-white border-2 border-gray-300 rounded-lg shadow-sm px-4 py-3 min-w-[140px] max-w-[220px] hover:border-blue-400 transition-colors">
+    <div className={`bg-white border-2 ${typeConfig.border} rounded-lg shadow-sm min-w-[180px] max-w-[240px] hover:shadow-md transition-all`}>
       <Handle
         type="target"
         position={Position.Top}
         className="!w-3 !h-3 !bg-gray-400 !border-2 !border-white"
       />
 
-      <div className="text-sm font-semibold text-gray-800 truncate">
-        {nodeData.label}
+      {/* 상단: ID + 타입 태그 */}
+      <div className="flex items-center justify-between px-3 pt-2 pb-1">
+        <span className="text-[11px] font-mono text-gray-400">
+          {nodeData.displayId}
+        </span>
+        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${typeConfig.color}`}>
+          {typeConfig.label}
+        </span>
       </div>
 
-      {nodeData.description && (
-        <div className="text-xs text-gray-400 mt-1 truncate">{nodeData.description}</div>
+      {/* 중앙: 이벤트 이름 */}
+      <div className="px-3 pb-1">
+        <div className="text-sm font-semibold text-gray-800 truncate">
+          {nodeData.label}
+        </div>
+        {nodeData.description && (
+          <div className="text-xs text-gray-400 mt-0.5 truncate">{nodeData.description}</div>
+        )}
+      </div>
+
+      {/* 하단: 조건/효과 요약 */}
+      {(hasTrigger || hasContent || effectCount > 0) && (
+        <div className="px-3 pb-2 pt-1 border-t border-gray-100 space-y-0.5">
+          {hasTrigger && (
+            <div className="text-[10px] text-gray-500 truncate">
+              ▸ 조건: {nodeData.eventData.trigger!.type}
+            </div>
+          )}
+          {hasContent && (
+            <div className="text-[10px] text-gray-500 truncate">
+              ▸ 콘텐츠 있음
+            </div>
+          )}
+          {effectCount > 0 && (
+            <div className="text-[10px] text-gray-500">
+              ▸ 효과 {effectCount}개
+            </div>
+          )}
+        </div>
       )}
-
-      <div className="flex gap-2 mt-2">
-        {hasContent && (
-          <span className="text-[10px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded">
-            콘텐츠
-          </span>
-        )}
-        {effectCount > 0 && (
-          <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded">
-            효과 {effectCount}
-          </span>
-        )}
-      </div>
 
       <Handle
         type="source"

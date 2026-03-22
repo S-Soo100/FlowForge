@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { TriggerEditor } from './TriggerEditor';
 import { ContentEditor } from './ContentEditor';
 import { EffectEditor } from './EffectEditor';
-import type { EventData } from '../../types';
+import { EVENT_TYPES, EVENT_TYPE_CONFIG, type EventData, type EventType } from '../../types';
 import type { EventNodeData } from '../../hooks/useEventGraph';
 
 interface Props {
@@ -39,11 +39,16 @@ export function EventDetailPanel({ nodeId, data, onSave, onDelete, onClose }: Pr
     }
   };
 
+  const eventType: EventType = eventData.eventType ?? 'other';
+
   return (
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col shrink-0 overflow-y-auto">
       {/* 헤더 */}
       <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-gray-800">이벤트 상세</h3>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono text-gray-400">{data.displayId}</span>
+          <h3 className="text-sm font-bold text-gray-800">이벤트 상세</h3>
+        </div>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
       </div>
 
@@ -74,6 +79,33 @@ export function EventDetailPanel({ nodeId, data, onSave, onDelete, onClose }: Pr
             placeholder="이벤트 한 줄 설명"
             className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
+        </div>
+
+        {/* 타입 */}
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            이벤트 타입
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {EVENT_TYPES.map((t) => {
+              const config = EVENT_TYPE_CONFIG[t];
+              const selected = eventType === t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setEventData({ ...eventData, eventType: t })}
+                  className={`px-2.5 py-1 text-xs rounded-md border transition ${
+                    selected
+                      ? `${config.border} ${config.color} font-semibold`
+                      : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                  }`}
+                >
+                  {config.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <hr className="border-gray-100" />
