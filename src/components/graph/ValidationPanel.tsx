@@ -4,8 +4,14 @@ import type { ValidationWarning } from '../../lib/validate';
 const TYPE_ICONS: Record<ValidationWarning['type'], string> = {
   orphan: '🔴',
   dead_end: '🟡',
-  no_content: '🟠',
   self_loop: '🔴',
+  setter_unset: '🟠',
+};
+
+const NODE_TYPE_ICON: Record<string, string> = {
+  event: '□',
+  switch: '◇',
+  setter: '▣',
 };
 
 interface Props {
@@ -23,8 +29,7 @@ export function ValidationPanel({ warnings, onClose }: Props) {
 
   const grouped = {
     errors: warnings.filter((w) => w.type === 'orphan' || w.type === 'self_loop'),
-    warns: warnings.filter((w) => w.type === 'dead_end'),
-    info: warnings.filter((w) => w.type === 'no_content'),
+    warns: warnings.filter((w) => w.type === 'dead_end' || w.type === 'setter_unset'),
   };
 
   return (
@@ -38,15 +43,12 @@ export function ValidationPanel({ warnings, onClose }: Props) {
 
       {warnings.length === 0 ? (
         <div className="p-6 flex flex-col items-center text-center">
-          <img src="/forgi-success-t.png" alt="Success" className="h-36 mb-3" />
+          <p className="text-2xl mb-2">✅</p>
           <p className="text-sm text-gray-500 font-medium">문제 없음!</p>
         </div>
       ) : (
         <div className="p-2 space-y-1">
-          <div className="flex justify-center py-2">
-            <img src="/forgi-error-t.png" alt="Warning" className="h-24 opacity-70" />
-          </div>
-          {[...grouped.errors, ...grouped.warns, ...grouped.info].map((w, i) => (
+          {[...grouped.errors, ...grouped.warns].map((w, i) => (
             <button
               key={i}
               onClick={() => jumpTo(w.nodeId)}
@@ -54,6 +56,9 @@ export function ValidationPanel({ warnings, onClose }: Props) {
             >
               <span>{TYPE_ICONS[w.type]}</span>
               <div>
+                <span className="text-gray-400 mr-1">
+                  {NODE_TYPE_ICON[w.nodeType ?? 'event'] ?? '□'}
+                </span>
                 <span className="font-mono text-[10px] text-gray-400">{w.displayId}</span>
                 <span className="text-gray-600 ml-1">{w.name}</span>
                 <div className="text-xs text-gray-400">{w.message}</div>

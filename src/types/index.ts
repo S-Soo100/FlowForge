@@ -1,61 +1,63 @@
-// ── 이벤트 트리거 ──
-export interface EventTrigger {
-  type: string;   // "quest_complete", "state_check", "manual" 등
-  value: string;  // 자유 텍스트 — Phase 2에서 구조화 가능
-}
+// ── 노드 타입 ──
+export type NodeType = 'event' | 'switch' | 'setter';
 
-// ── 이벤트 효과 ──
-export interface EventEffect {
-  type: 'set_state' | 'call_event' | string; // 확장 가능
-  key?: string;
-  value?: string | number | boolean;
-  targetEventId?: string;
-}
-
-// ── 이벤트 타입 ──
-export const EVENT_TYPES = ['dialogue', 'combat', 'cutscene', 'system', 'other'] as const;
-export type EventType = typeof EVENT_TYPES[number];
-
-export const EVENT_TYPE_CONFIG: Record<EventType, { label: string; color: string; border: string }> = {
-  dialogue: { label: '대화', color: 'bg-green-100 text-green-700', border: 'border-green-400' },
-  combat:   { label: '전투', color: 'bg-red-100 text-red-700', border: 'border-red-400' },
-  cutscene: { label: '컷씬', color: 'bg-purple-100 text-purple-700', border: 'border-purple-400' },
-  system:   { label: '시스템', color: 'bg-blue-100 text-blue-700', border: 'border-blue-400' },
-  other:    { label: '기타', color: 'bg-gray-100 text-gray-600', border: 'border-gray-300' },
-};
-
-// ── 이벤트 데이터 (JSONB에 저장) ──
-export interface EventData {
-  trigger?: EventTrigger;
-  content?: string;       // 대사, 연출 메모 등
-  effects?: EventEffect[];
-  eventType?: EventType;
-}
-
-// ── 이벤트 노드 (DB row) ──
-export interface GameEvent {
+// ── 게임 노드 (DB row) ──
+export interface GameNode {
   id: string;
   project_id: string;
+  node_type: NodeType;
+  display_id: string;   // E001, S001
   name: string;
-  display_id: string;   // EVT-001 형식의 자동 ID
-  description?: string;
+  summary?: string;     // event only
+  detail?: string;      // event only
+  node_data: Record<string, unknown>;
   position_x: number;
   position_y: number;
-  event_data: EventData;
   created_at?: string;
   updated_at?: string;
 }
 
-// ── 이벤트 엣지 (DB row) ──
-export interface GameEventEdge {
+// ── 게임 엣지 (DB row) ──
+export interface GameEdge {
   id: string;
   project_id: string;
-  source_event_id: string;
-  target_event_id: string;
-  condition_label?: string;
+  source_node_id: string;
+  target_node_id: string;
+  label?: string;
   sort_order: number;
   created_at?: string;
 }
+
+// ── React Flow 노드 data ──
+export interface EventNodeData {
+  label: string;
+  displayId: string;
+  summary?: string;
+  detail?: string;
+  nodeType: 'event';
+  dbId: string;
+  [key: string]: unknown;
+}
+
+export interface SwitchNodeData {
+  label: string;
+  displayId: string;
+  nodeType: 'switch';
+  dbId: string;
+  [key: string]: unknown;
+}
+
+export interface SetterNodeData {
+  label: string;
+  displayId: string;
+  targetDisplayId: string;
+  targetValue: string;
+  nodeType: 'setter';
+  dbId: string;
+  [key: string]: unknown;
+}
+
+export type FlowNodeData = EventNodeData | SwitchNodeData | SetterNodeData;
 
 // ── 프로젝트 ──
 export type ProjectRole = 'editor' | 'viewer';
@@ -78,20 +80,19 @@ export interface ProjectMember {
 }
 
 // ── JSON Export 포맷 ──
-export interface ExportedEvent {
+export interface ExportedNode {
   id: string;
   displayId: string;
+  nodeType: NodeType;
   name: string;
-  type?: EventType;
-  description?: string;
-  trigger?: EventTrigger;
-  content?: string;
-  effects?: EventEffect[];
+  summary?: string;
+  detail?: string;
+  nodeData?: Record<string, unknown>;
   next: Array<{
-    target: string;         // target event id (uuid)
-    targetDisplayId?: string; // EVT-002
-    targetName?: string;    // 읽기 편하도록 이름도 포함
-    condition?: string;
+    target: string;
+    targetDisplayId?: string;
+    targetName?: string;
+    label?: string;
   }>;
 }
 
@@ -101,5 +102,5 @@ export interface ExportedProject {
     description?: string;
     exportedAt: string;
   };
-  events: ExportedEvent[];
+  nodes: ExportedNode[];
 }

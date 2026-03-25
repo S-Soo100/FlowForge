@@ -4,59 +4,61 @@ import type { ExportedProject } from '../types';
 export async function importProject(
   projectId: string,
   json: ExportedProject
-): Promise<{ eventCount: number; edgeCount: number }> {
+): Promise<{ nodeCount: number; edgeCount: number }> {
   // 기존 데이터 삭제
-  await supabase.from('event_edges').delete().eq('project_id', projectId);
-  await supabase.from('events').delete().eq('project_id', projectId);
+  await supabase.from('edges').delete().eq('project_id', projectId);
+  await supabase.from('nodes').delete().eq('project_id', projectId);
 
   // ID 매핑 (export의 uuid → 새 uuid)
   const idMap = new Map<string, string>();
 
-  // 이벤트 삽입
-  for (let i = 0; i < json.events.length; i++) {
-    const evt = json.events[i];
-    const displayId = evt.displayId || `EVT-${String(i + 1).padStart(3, '0')}`;
+  // 노드 삽입
+  for (let i = 0; i < json.nodes.length; i++) {
+    const n = json.nodes[i];
+    const prefixMap: Record<string, string> = { event: 'E', switch: 'S', setter: 'A' };
+    const prefix = prefixMap[n.nodeType ?? 'event'] ?? 'E';
+    const displayId = n.displayId || `${prefix}${String(i + 1).padStart(3, '0')}`;
+
+    const nodeData = n.nodeType === 'setter' ? (n.nodeData ?? {}) : {};
 
     const { data, error } = await supabase
-      .from('events')
+      .from('nodes')
       .insert({
         project_id: projectId,
-        name: evt.name,
+        node_type: n.nodeType ?? 'event',
+        name: n.name,
         display_id: displayId,
-        description: evt.description || '',
+        summary: n.summary ?? '',
+        detail: n.detail ?? '',
         position_x: 400,
         position_y: i * 150,
-        event_data: {
-          eventType: evt.type || 'other',
-          content: evt.content || '',
-          effects: evt.effects || [],
-        },
+        node_data: nodeData,
       })
       .select('id')
       .single();
 
     if (error || !data) throw error;
-    idMap.set(evt.id, data.id);
+    idMap.set(n.id, data.id);
   }
 
   // 엣지 삽입
   let edgeCount = 0;
-  for (const evt of json.events) {
-    for (const next of evt.next) {
-      const sourceId = idMap.get(evt.id);
+  for (const n of json.nodes) {
+    for (const next of n.next) {
+      const sourceId = idMap.get(n.id);
       const targetId = idMap.get(next.target);
       if (!sourceId || !targetId) continue;
 
-      await supabase.from('event_edges').insert({
+      await supabase.from('edges').insert({
         project_id: projectId,
-        source_event_id: sourceId,
-        target_event_id: targetId,
-        condition_label: next.condition || '',
+        source_node_id: sourceId,
+        target_node_id: targetId,
+        label: next.label ?? '',
         sort_order: 0,
       });
       edgeCount++;
     }
   }
 
-  return { eventCount: json.events.length, edgeCount };
+  return { nodeCount: json.nodes.length, edgeCount };
 }

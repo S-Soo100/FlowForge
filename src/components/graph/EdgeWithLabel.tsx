@@ -11,17 +11,6 @@ interface Props extends EdgeProps {
   onDelete?: (edgeId: string) => void;
 }
 
-/** 쉼표 구분 문자열 → 태그 배열 */
-function parseTags(label: string | undefined): string[] {
-  if (!label) return [];
-  return label.split(',').map((s) => s.trim()).filter(Boolean);
-}
-
-/** 태그 배열 → 쉼표 구분 문자열 */
-function joinTags(tags: string[]): string {
-  return tags.join(', ');
-}
-
 export function EdgeWithLabel({
   id,
   sourceX,
@@ -35,9 +24,8 @@ export function EdgeWithLabel({
   onLabelChange,
   onDelete,
 }: Props) {
-  const [adding, setAdding] = useState(false);
-  const [newTag, setNewTag] = useState('');
-  const tags = parseTags(label as string);
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
 
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -48,21 +36,14 @@ export function EdgeWithLabel({
     targetPosition,
   });
 
-  const saveTag = () => {
-    const trimmed = newTag.trim();
-    if (!trimmed) {
-      setAdding(false);
-      return;
-    }
-    const updated = [...tags, trimmed];
-    onLabelChange?.(id, joinTags(updated));
-    setNewTag('');
-    setAdding(false);
+  const startEdit = () => {
+    setEditValue((label as string) ?? '');
+    setEditing(true);
   };
 
-  const removeTag = (index: number) => {
-    const updated = tags.filter((_, i) => i !== index);
-    onLabelChange?.(id, joinTags(updated));
+  const saveEdit = () => {
+    onLabelChange?.(id, editValue.trim());
+    setEditing(false);
   };
 
   return (
@@ -79,39 +60,30 @@ export function EdgeWithLabel({
           }}
         >
           <div className="flex flex-col items-center gap-1">
-            {/* 조건 태그들 */}
-            {tags.map((tag, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-0.5 text-[11px] px-2 py-0.5 bg-yellow-50 border border-yellow-300 rounded-full text-gray-700"
-              >
-                {tag}
-                <button
-                  onClick={() => removeTag(i)}
-                  className="text-gray-400 hover:text-red-500 ml-0.5"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-
-            {/* 추가 입력 */}
-            {adding ? (
+            {/* 라벨 표시 또는 인라인 편집 */}
+            {editing ? (
               <input
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                onBlur={saveTag}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={saveEdit}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveTag();
-                  if (e.key === 'Escape') { setAdding(false); setNewTag(''); }
+                  if (e.key === 'Enter') saveEdit();
+                  if (e.key === 'Escape') setEditing(false);
                 }}
                 autoFocus
-                className="text-[11px] px-2 py-0.5 border border-blue-400 rounded-full bg-white w-20 focus:outline-none"
-                placeholder="조건..."
+                className="text-[11px] px-2 py-0.5 border border-blue-400 rounded-full bg-white w-24 focus:outline-none"
+                placeholder="라벨..."
               />
+            ) : label ? (
+              <span
+                onClick={startEdit}
+                className="inline-flex items-center text-[11px] px-2 py-0.5 bg-yellow-50 border border-yellow-300 rounded-full text-gray-700 cursor-pointer hover:bg-yellow-100"
+              >
+                {label as string}
+              </span>
             ) : (
               <button
-                onClick={() => setAdding(true)}
+                onClick={startEdit}
                 className="text-[9px] w-4 h-4 bg-gray-100 border border-gray-300 rounded-full hover:bg-gray-200 text-gray-400 flex items-center justify-center leading-none"
               >
                 +

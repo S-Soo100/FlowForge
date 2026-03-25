@@ -13,6 +13,8 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { EventNode } from './EventNode';
+import { SwitchNode } from './SwitchNode';
+import SetterNode from './SetterNode';
 import { EdgeWithLabel } from './EdgeWithLabel';
 import { NodeContextMenu } from './NodeContextMenu';
 import type { useEventGraph } from '../../hooks/useEventGraph';
@@ -33,7 +35,14 @@ interface ContextMenuState {
 export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
-  const nodeTypes: NodeTypes = useMemo(() => ({ eventNode: EventNode }), []);
+  const nodeTypes: NodeTypes = useMemo(
+    () => ({
+      eventNode: EventNode,
+      switchNode: SwitchNode,
+      setterNode: SetterNode,
+    }),
+    []
+  );
 
   const edgeTypes: EdgeTypes = useMemo(
     () => ({
@@ -64,7 +73,7 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
     [graph.updateNodePosition]
   );
 
-  const handleNodeDoubleClick = useCallback(
+  const handleNodeClick = useCallback(
     (_event: React.MouseEvent, node: { id: string }) => {
       onNodeDoubleClick(node.id);
     },
@@ -95,7 +104,7 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
         onEdgesChange={graph.onEdgesChange}
         onConnect={graph.onConnect}
         onNodeDragStop={onNodeDragStop}
-        onNodeDoubleClick={handleNodeDoubleClick}
+        onNodeClick={handleNodeClick}
         onNodeContextMenu={handleNodeContextMenu}
         onPaneClick={handlePaneClick}
         fitView
@@ -119,7 +128,7 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
           y={contextMenu.y}
           nodeId={contextMenu.nodeId}
           onEdit={onNodeDoubleClick}
-          onDelete={graph.deleteEvent}
+          onDelete={graph.deleteNode}
           onClose={() => setContextMenu(null)}
         />
       )}

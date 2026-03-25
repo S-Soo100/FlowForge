@@ -28,13 +28,25 @@ export function LoginForm() {
     if (isSignUp) {
       const { error } = await signUp(email, password, displayName);
       if (error) {
-        setError(error.message);
+        if (error.message.includes('Database error saving new user')) {
+          setError('서버 설정 문제로 가입에 실패했어요. 관리자에게 문의해주세요.');
+        } else if (error.message.includes('already registered')) {
+          setError('이미 가입된 이메일이에요.');
+        } else {
+          setError(error.message);
+        }
       } else {
         setSignUpDone(true);
       }
     } else {
       const { error } = await signInWithEmail(email, password);
-      if (error) setError(error.message);
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          setError('이메일 또는 비밀번호가 올바르지 않아요.');
+        } else {
+          setError(error.message);
+        }
+      }
     }
     setLoading(false);
   };

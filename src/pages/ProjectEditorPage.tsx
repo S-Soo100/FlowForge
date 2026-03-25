@@ -8,6 +8,8 @@ import { useHistory } from '../hooks/useHistory';
 import { useProjectRole } from '../hooks/useProjectRole';
 import { EventCanvas } from '../components/graph/EventCanvas';
 import { EventDetailPanel } from '../components/detail/EventDetailPanel';
+import { SwitchDetailPanel } from '../components/detail/SwitchDetailPanel';
+import { SetterDetailPanel } from '../components/detail/SetterDetailPanel';
 import { ValidationPanel } from '../components/graph/ValidationPanel';
 import { ProjectSettingsPanel } from '../components/project/ProjectSettingsPanel';
 import { Toolbar } from '../components/graph/Toolbar';
@@ -16,14 +18,13 @@ import { exportProject, downloadJson } from '../lib/exportProject';
 import { importProject } from '../lib/importProject';
 import { getAutoLayout } from '../lib/autoLayout';
 import { validateGraph, type ValidationWarning } from '../lib/validate';
-import type { Project, EventType, ExportedProject } from '../types';
-import type { EventNodeData } from '../hooks/useEventGraph';
+import type { Project, NodeType, ExportedProject, EventNodeData, SwitchNodeData, SetterNodeData, FlowNodeData } from '../types';
 
 function EditorContent() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { fitView, setNodes: rfSetNodes } = useReactFlow();
+  const { fitView, setNodes: rfSetNodes, getViewport, screenToFlowPosition } = useReactFlow();
   const [project, setProject] = useState<Project | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -44,14 +45,19 @@ function EditorContent() {
       .then(({ data }) => setProject(data as Project));
   }, [projectId]);
 
-  // ── 이벤트 추가 ──
-  const handleAddEvent = useCallback(async (name: string, eventType: EventType) => {
+  // ── 노드 추가 ──
+  const handleAddNode = useCallback(async (name: string, nodeType: NodeType) => {
     history.pushSnapshot(graph.nodes, graph.edges);
-    const x = 250 + Math.random() * 200;
-    const y = 100 + graph.nodes.length * 120;
-    await graph.addEvent(name, x, y, eventType);
+    // 현재 뷰포트 중앙에 노드 추가 (약간 랜덤 오프셋)
+    const centerPos = screenToFlowPosition({
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+    });
+    const x = centerPos.x - 100 + Math.random() * 40 - 20;
+    const y = centerPos.y - 50 + Math.random() * 40 - 20;
+    await graph.addNode(name, nodeType, x, y);
     setShowAddModal(false);
-  }, [graph, history]);
+  }, [graph, history, screenToFlowPosition]);
 
   // ── Export ──
   const handleExport = useCallback(() => {
@@ -73,15 +79,15 @@ function EditorContent() {
       const text = await file.text();
       const json = JSON.parse(text) as ExportedProject;
 
-      if (!json.events || !Array.isArray(json.events)) {
+      if (!json.nodes || !Array.isArray(json.nodes)) {
         alert('올바른 FlowForge JSON 파일이 아닙니다.');
         return;
       }
 
-      if (!confirm(`${json.events.length}개 이벤트를 가져올까요? 기존 데이터는 삭제됩니다.`)) return;
+      if (!confirm(`${json.nodes.length}개 노드를 가져올까요? 기존 데이터는 삭제됩니다.`)) return;
 
       const result = await importProject(projectId!, json);
-      alert(`가져오기 완료: 이벤트 ${result.eventCount}개, 연결 ${result.edgeCount}개`);
+      alert(`가져오기 완료: 노드 ${result.nodeCount}개, 연결 ${result.edgeCount}개`);
       await graph.reload();
       setTimeout(() => fitView({ duration: 400 }), 100);
     } catch (err) {
@@ -134,16 +140,19 @@ function EditorContent() {
     setShowSettings(false);
   }, []);
 
-  // ── 이벤트 삭제 (히스토리 포함) ──
-  const handleDeleteEvent = useCallback(async (nodeId: string) => {
+  // ── 노드 삭제 (히스토리 포함) ──
+  const handleDeleteNode = useCallback(async (nodeId: string) => {
     history.pushSnapshot(graph.nodes, graph.edges);
-    await graph.deleteEvent(nodeId);
+    await graph.deleteNode(nodeId);
   }, [graph, history]);
 
-  // ── 이벤트 수정 (히스토리 포함) ──
-  const handleUpdateEvent: typeof graph.updateEvent = useCallback(async (nodeId, updates) => {
+  // ── 노드 수정 (히스토리 포함) ──
+  const handleUpdateNode = useCallback(async (
+    nodeId: string,
+    updates: { name?: string; summary?: string; detail?: string; node_data?: Record<string, unknown> }
+  ) => {
     history.pushSnapshot(graph.nodes, graph.edges);
-    await graph.updateEvent(nodeId, updates);
+    await graph.updateNode(nodeId, updates);
   }, [graph, history]);
 
   // ── 설정 패널 ──
@@ -178,6 +187,12 @@ function EditorContent() {
   const selectedNode = selectedNodeId
     ? graph.nodes.find((n) => n.id === selectedNodeId)
     : null;
+
+  const selectedNodeData = selectedNode?.data as FlowNodeData | undefined;
+
+  const switchNodesForSetter = graph.nodes
+    .filter((n) => n.data.nodeType === 'switch')
+    .map((n) => ({ displayId: n.data.displayId as string, name: n.data.label as string }));
 
   if (!project || graph.loading || roleLoading) {
     return (
@@ -219,18 +234,42 @@ function EditorContent() {
         <EventCanvas
           graph={{
             ...graph,
-            deleteEvent: handleDeleteEvent,
+            deleteNode: handleDeleteNode,
           }}
           onNodeDoubleClick={handleNodeDoubleClick}
         />
 
-        {selectedNode && (
+        {selectedNode && selectedNodeData?.nodeType === 'event' && (
           <EventDetailPanel
             nodeId={selectedNode.id}
-            data={selectedNode.data as unknown as EventNodeData}
-            onSave={handleUpdateEvent}
-            onDelete={handleDeleteEvent}
+            data={selectedNodeData as EventNodeData}
+            onSave={handleUpdateNode}
+            onDelete={handleDeleteNode}
             onClose={() => setSelectedNodeId(null)}
+          />
+        )}
+
+        {selectedNode && selectedNodeData?.nodeType === 'switch' && (
+          <SwitchDetailPanel
+            nodeId={selectedNode.id}
+            data={selectedNodeData as SwitchNodeData}
+            edges={graph.edges}
+            nodes={graph.nodes}
+            onSave={handleUpdateNode}
+            onDelete={handleDeleteNode}
+            onClose={() => setSelectedNodeId(null)}
+          />
+        )}
+
+        {selectedNode && selectedNodeData?.nodeType === 'setter' && (
+          <SetterDetailPanel
+            nodeId={selectedNode.id}
+            data={selectedNodeData as SetterNodeData}
+            switchNodes={switchNodesForSetter}
+            onSave={handleUpdateNode}
+            onDelete={handleDeleteNode}
+            onClose={() => setSelectedNodeId(null)}
+            isReadOnly={isReadOnly}
           />
         )}
 
@@ -252,7 +291,7 @@ function EditorContent() {
 
       {showAddModal && canEdit && (
         <AddEventModal
-          onSubmit={handleAddEvent}
+          onSubmit={handleAddNode}
           onClose={() => setShowAddModal(false)}
         />
       )}

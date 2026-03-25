@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useReactFlow } from '@xyflow/react';
-import type { EventNodeData } from '../../hooks/useEventGraph';
+import type { FlowNodeData, SetterNodeData } from '../../types';
 
 export function SearchBar() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<{ id: string; label: string; displayId: string }[]>([]);
+  const [results, setResults] = useState<{ id: string; label: string; displayId: string; nodeType: string }[]>([]);
   const [open, setOpen] = useState(false);
   const { getNodes, fitView, setNodes } = useReactFlow();
 
@@ -13,7 +13,6 @@ export function SearchBar() {
       setQuery(value);
       if (!value.trim()) {
         setResults([]);
-        // 하이라이트 해제
         setNodes((nds) => nds.map((n) => ({ ...n, className: '' })));
         return;
       }
@@ -21,19 +20,28 @@ export function SearchBar() {
       const q = value.toLowerCase();
       const nodes = getNodes();
       const matched = nodes.filter((n) => {
-        const data = n.data as unknown as EventNodeData;
-        return (
+        const data = n.data as unknown as FlowNodeData;
+        const baseMatch =
           data.label?.toLowerCase().includes(q) ||
           data.displayId?.toLowerCase().includes(q) ||
-          data.description?.toLowerCase().includes(q) ||
-          data.eventData?.content?.toLowerCase().includes(q)
-        );
+          data.nodeType?.toLowerCase().includes(q);
+
+        if (data.nodeType === 'event') {
+          return baseMatch || data.summary?.toLowerCase().includes(q);
+        }
+        if (data.nodeType === 'setter') {
+          const sd = data as SetterNodeData;
+          return baseMatch
+            || sd.targetDisplayId?.toLowerCase().includes(q)
+            || sd.targetValue?.toLowerCase().includes(q);
+        }
+        return baseMatch;
       });
 
       setResults(
         matched.map((n) => {
-          const data = n.data as unknown as EventNodeData;
-          return { id: n.id, label: data.label, displayId: data.displayId };
+          const data = n.data as unknown as FlowNodeData;
+          return { id: n.id, label: data.label, displayId: data.displayId, nodeType: data.nodeType };
         })
       );
 
@@ -74,10 +82,16 @@ export function SearchBar() {
         className="px-3 py-1.5 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition"
         title="Ctrl+F"
       >
-        🔍 검색
+        검색
       </button>
     );
   }
+
+  const nodeTypeIcon = (nodeType: string) => {
+    if (nodeType === 'switch') return '◇';
+    if (nodeType === 'setter') return '▣';
+    return '□';
+  };
 
   return (
     <div className="relative">
@@ -90,7 +104,7 @@ export function SearchBar() {
             if (e.key === 'Enter' && results.length > 0) jumpToNode(results[0].id);
           }}
           autoFocus
-          placeholder="이벤트 이름, ID, 내용..."
+          placeholder="이름, ID, 요약..."
           className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-56"
         />
         <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 text-sm px-1">
@@ -106,6 +120,7 @@ export function SearchBar() {
               onClick={() => jumpToNode(r.id)}
               className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center gap-2"
             >
+              <span className="text-gray-400">{nodeTypeIcon(r.nodeType)}</span>
               <span className="text-[10px] font-mono text-gray-400">{r.displayId}</span>
               <span className="text-gray-700 truncate">{r.label}</span>
             </button>

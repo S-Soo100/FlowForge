@@ -1,39 +1,50 @@
 import type { Node, Edge } from '@xyflow/react';
-import type { ExportedProject, ExportedEvent } from '../types';
-import type { EventNodeData } from '../hooks/useEventGraph';
+import type { ExportedProject, ExportedNode, FlowNodeData, EventNodeData, SetterNodeData } from '../types';
 
 export function exportProject(
   projectName: string,
   projectDescription: string | undefined,
-  nodes: Node<EventNodeData>[],
+  nodes: Node<FlowNodeData>[],
   edges: Edge[]
 ): ExportedProject {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
 
-  const events: ExportedEvent[] = nodes.map((node) => {
-    const data = node.data as unknown as EventNodeData;
+  const exportedNodes: ExportedNode[] = nodes.map((node) => {
+    const data = node.data as unknown as FlowNodeData;
     const outEdges = edges.filter((e) => e.source === node.id);
 
-    return {
+    const base: ExportedNode = {
       id: node.id,
       displayId: data.displayId,
+      nodeType: data.nodeType,
       name: data.label,
-      type: data.eventData?.eventType,
-      description: data.description,
-      trigger: data.eventData?.trigger,
-      content: data.eventData?.content,
-      effects: data.eventData?.effects,
       next: outEdges.map((e) => {
         const targetNode = nodeMap.get(e.target);
-        const targetData = targetNode?.data as unknown as EventNodeData | undefined;
+        const targetData = targetNode?.data as unknown as FlowNodeData | undefined;
         return {
           target: e.target,
           targetDisplayId: targetData?.displayId,
           targetName: targetData?.label,
-          condition: (e.label as string) || undefined,
+          label: (e.label as string) || undefined,
         };
       }),
     };
+
+    if (data.nodeType === 'event') {
+      const evData = data as EventNodeData;
+      base.summary = evData.summary;
+      base.detail = evData.detail;
+    }
+
+    if (data.nodeType === 'setter') {
+      const setterData = data as SetterNodeData;
+      base.nodeData = {
+        target_display_id: setterData.targetDisplayId,
+        value: setterData.targetValue,
+      };
+    }
+
+    return base;
   });
 
   return {
@@ -42,7 +53,7 @@ export function exportProject(
       description: projectDescription,
       exportedAt: new Date().toISOString(),
     },
-    events,
+    nodes: exportedNodes,
   };
 }
 
@@ -52,7 +63,7 @@ export function downloadJson(data: ExportedProject) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${data.project.name.replace(/\s+/g, '_')}_events.json`;
+  a.download = `${data.project.name.replace(/\s+/g, '_')}_nodes.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
