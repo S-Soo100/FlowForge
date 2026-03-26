@@ -22,8 +22,8 @@ const SetterNode = memo(({ data }: NodeProps) => {
           {setterData.targetDisplayId || '?'} → {setterData.targetValue || '?'}
         </span>
       </div>
-      {/* 입력 핸들만 — 출력 핸들 없음 */}
       <Handle type="target" position={Position.Top} style={{ top: -4 }} />
+      <Handle type="source" position={Position.Bottom} style={{ bottom: -4 }} />
     </div>
   );
 });
