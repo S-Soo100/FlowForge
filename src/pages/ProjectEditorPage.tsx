@@ -24,7 +24,7 @@ function EditorContent() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { fitView, setNodes: rfSetNodes, getViewport, screenToFlowPosition } = useReactFlow();
+  const { fitView, setNodes: rfSetNodes, screenToFlowPosition } = useReactFlow();
   const [project, setProject] = useState<Project | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
