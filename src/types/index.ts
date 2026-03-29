@@ -30,6 +30,7 @@ export interface GameEdge {
   source_node_id: string;
   target_node_id: string;
   label?: string;
+  source_handle?: string;
   sort_order: number;
   created_at?: string;
 }

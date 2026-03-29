@@ -69,7 +69,7 @@ export function useEventGraph(projectId: string) {
         id: e.id,
         source: e.source_node_id,
         target: e.target_node_id,
-        sourceHandle: undefined,
+        sourceHandle: e.source_handle || 'source-bottom',
         targetHandle: undefined,
         label: e.label || undefined,
         type: 'edgeWithLabel',
@@ -258,6 +258,7 @@ export function useEventGraph(projectId: string) {
               source_node_id: params.source,
               target_node_id: params.target,
               label: autoLabel,
+              source_handle: params.sourceHandle || 'source-bottom',
               sort_order: 0,
             })
             .select()
@@ -272,6 +273,7 @@ export function useEventGraph(projectId: string) {
               id: edge.id,
               source: edge.source_node_id,
               target: edge.target_node_id,
+              sourceHandle: edge.source_handle || 'source-bottom',
               label: autoLabel,
               type: 'edgeWithLabel',
               data: { dbId: edge.id },
@@ -288,6 +290,7 @@ export function useEventGraph(projectId: string) {
             source_node_id: params.source,
             target_node_id: params.target,
             label: '',
+            source_handle: params.sourceHandle || 'source-bottom',
             sort_order: 0,
           })
           .select()
@@ -302,6 +305,7 @@ export function useEventGraph(projectId: string) {
             id: edge.id,
             source: edge.source_node_id,
             target: edge.target_node_id,
+            sourceHandle: edge.source_handle || 'source-bottom',
             label: undefined,
             type: 'edgeWithLabel',
             data: { dbId: edge.id },
@@ -319,6 +323,7 @@ export function useEventGraph(projectId: string) {
           source_node_id: params.source,
           target_node_id: params.target,
           label: '',
+          source_handle: params.sourceHandle || null,
           sort_order: 0,
         })
         .select()
@@ -333,6 +338,7 @@ export function useEventGraph(projectId: string) {
           id: edge.id,
           source: edge.source_node_id,
           target: edge.target_node_id,
+          sourceHandle: edge.source_handle || undefined,
           label: edge.label || undefined,
           type: 'edgeWithLabel',
           data: { dbId: edge.id },
