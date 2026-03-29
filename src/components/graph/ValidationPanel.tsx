@@ -5,13 +5,11 @@ const TYPE_ICONS: Record<ValidationWarning['type'], string> = {
   orphan: '🔴',
   dead_end: '🟡',
   self_loop: '🔴',
-  setter_unset: '🟠',
 };
 
 const NODE_TYPE_ICON: Record<string, string> = {
   event: '□',
   switch: '◇',
-  setter: '▣',
 };
 
 interface Props {
@@ -29,7 +27,7 @@ export function ValidationPanel({ warnings, onClose }: Props) {
 
   const grouped = {
     errors: warnings.filter((w) => w.type === 'orphan' || w.type === 'self_loop'),
-    warns: warnings.filter((w) => w.type === 'dead_end' || w.type === 'setter_unset'),
+    warns: warnings.filter((w) => w.type === 'dead_end'),
   };
 
   return (
