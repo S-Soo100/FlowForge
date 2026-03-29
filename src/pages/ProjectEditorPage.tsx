@@ -239,6 +239,7 @@ function EditorContent() {
             nodeId={selectedNode.id}
             data={selectedNodeData as EventNodeData}
             onSave={handleUpdateNode}
+            onSyncChoices={graph.syncChoicesToEdges}
             onDelete={handleDeleteNode}
             onClose={() => setSelectedNodeId(null)}
           />

@@ -6,10 +6,16 @@ import type { GameNode, GameEdge, NodeType, EventNodeData, SwitchNodeData, FlowN
 
 export type { EventNodeData, SwitchNodeData, FlowNodeData };
 
+export interface PendingEdge {
+  edgeId: string;
+  sourceId: string;
+}
+
 export function useEventGraph(projectId: string) {
   const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingEdge, setPendingEdge] = useState<PendingEdge | null>(null);
 
   // ── DB에서 로드 ──
   const load = useCallback(async () => {
@@ -219,7 +225,7 @@ export function useEventGraph(projectId: string) {
     []
   );
 
-  // ── 엣지 연결 (중복 방지) ──
+  // ── 엣지 연결 (중복 방지 + 스위치 Yes/No 로직) ──
   const onConnect: OnConnect = useCallback(
     async (params) => {
       if (!params.source || !params.target) return;
@@ -229,6 +235,83 @@ export function useEventGraph(projectId: string) {
       );
       if (duplicate) return;
 
+      // 소스 노드가 스위치인지 확인
+      const sourceNode = nodes.find((n) => n.id === params.source);
+      const isFromSwitch = sourceNode?.type === 'switchNode';
+
+      if (isFromSwitch) {
+        // 스위치에서 나가는 기존 엣지
+        const outEdges = edges.filter((e) => e.source === params.source);
+
+        // 이미 2개 이상이면 차단
+        if (outEdges.length >= 2) return;
+
+        // 1개 이미 있으면 반대 라벨 자동 결정
+        if (outEdges.length === 1) {
+          const existingLabel = outEdges[0].label as string | undefined;
+          const autoLabel = existingLabel === 'yes' ? 'no' : 'yes';
+
+          const { data, error } = await supabase
+            .from('edges')
+            .insert({
+              project_id: projectId,
+              source_node_id: params.source,
+              target_node_id: params.target,
+              label: autoLabel,
+              sort_order: 0,
+            })
+            .select()
+            .single();
+
+          if (error || !data) return;
+
+          const edge = data as GameEdge;
+          setEdges((eds) => [
+            ...eds,
+            {
+              id: edge.id,
+              source: edge.source_node_id,
+              target: edge.target_node_id,
+              label: autoLabel,
+              type: 'edgeWithLabel',
+              data: { dbId: edge.id },
+            },
+          ]);
+          return;
+        }
+
+        // 0개 — 먼저 DB에 라벨 없이 저장하고 pendingEdge로 팝업 대기
+        const { data, error } = await supabase
+          .from('edges')
+          .insert({
+            project_id: projectId,
+            source_node_id: params.source,
+            target_node_id: params.target,
+            label: '',
+            sort_order: 0,
+          })
+          .select()
+          .single();
+
+        if (error || !data) return;
+
+        const edge = data as GameEdge;
+        setEdges((eds) => [
+          ...eds,
+          {
+            id: edge.id,
+            source: edge.source_node_id,
+            target: edge.target_node_id,
+            label: undefined,
+            type: 'edgeWithLabel',
+            data: { dbId: edge.id },
+          },
+        ]);
+        setPendingEdge({ edgeId: edge.id, sourceId: params.source });
+        return;
+      }
+
+      // 일반 노드 → 기존 동작
       const { data, error } = await supabase
         .from('edges')
         .insert({
@@ -256,7 +339,64 @@ export function useEventGraph(projectId: string) {
         },
       ]);
     },
-    [projectId, edges]
+    [projectId, edges, nodes]
+  );
+
+  // ── pendingEdge Yes/No 확정 ──
+  const confirmPendingEdge = useCallback(
+    async (choice: 'yes' | 'no') => {
+      if (!pendingEdge) return;
+      const { edgeId } = pendingEdge;
+      await supabase.from('edges').update({ label: choice }).eq('id', edgeId);
+      setEdges((eds) =>
+        eds.map((e) => (e.id === edgeId ? { ...e, label: choice } : e))
+      );
+      setPendingEdge(null);
+    },
+    [pendingEdge]
+  );
+
+  // ── pendingEdge 취소 (엣지 삭제) ──
+  const cancelPendingEdge = useCallback(async () => {
+    if (!pendingEdge) return;
+    await supabase.from('edges').delete().eq('id', pendingEdge.edgeId);
+    setEdges((eds) => eds.filter((e) => e.id !== pendingEdge.edgeId));
+    setPendingEdge(null);
+  }, [pendingEdge]);
+
+  // ── 선택지 → 나가는 엣지 라벨 자동 동기화 ──
+  // 이벤트 노드 저장 시 choices 배열 → 나가는 엣지 라벨 순서대로 업데이트
+  const syncChoicesToEdges = useCallback(
+    async (sourceNodeId: string, choices: string[] | null) => {
+      // 나가는 엣지 목록 (sort_order 순)
+      const outEdges = edges
+        .filter((e) => e.source === sourceNodeId)
+        .sort((a, b) => {
+          const aOrder = (a.data as { sort_order?: number } | undefined)?.sort_order ?? 0;
+          const bOrder = (b.data as { sort_order?: number } | undefined)?.sort_order ?? 0;
+          return aOrder - bOrder;
+        });
+
+      const updates = outEdges.map((edge, idx) => {
+        const newLabel = choices && idx < choices.length ? choices[idx] : '';
+        return { edgeId: edge.id, label: newLabel };
+      });
+
+      await Promise.all(
+        updates.map(({ edgeId, label }) =>
+          supabase.from('edges').update({ label }).eq('id', edgeId)
+        )
+      );
+
+      setEdges((eds) =>
+        eds.map((e) => {
+          const update = updates.find((u) => u.edgeId === e.id);
+          if (!update) return e;
+          return { ...e, label: update.label || undefined };
+        })
+      );
+    },
+    [edges]
   );
 
   // ── 엣지 라벨 수정 ──
@@ -291,5 +431,9 @@ export function useEventGraph(projectId: string) {
     updateEdgeLabel,
     deleteEdge,
     reload: load,
+    pendingEdge,
+    confirmPendingEdge,
+    cancelPendingEdge,
+    syncChoicesToEdges,
   };
 }

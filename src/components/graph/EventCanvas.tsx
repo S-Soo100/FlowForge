@@ -16,6 +16,7 @@ import { EventNode } from './EventNode';
 import { SwitchNode } from './SwitchNode';
 import { EdgeWithLabel } from './EdgeWithLabel';
 import { NodeContextMenu } from './NodeContextMenu';
+import { YesNoSelectPopup } from './YesNoSelectPopup';
 import type { useEventGraph } from '../../hooks/useEventGraph';
 
 type GraphHook = ReturnType<typeof useEventGraph>;
@@ -128,6 +129,13 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
           onEdit={onNodeDoubleClick}
           onDelete={graph.deleteNode}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {graph.pendingEdge && (
+        <YesNoSelectPopup
+          onSelect={graph.confirmPendingEdge}
+          onClose={graph.cancelPendingEdge}
         />
       )}
     </div>

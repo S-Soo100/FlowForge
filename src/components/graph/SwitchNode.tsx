@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { SwitchNodeData } from '../../types';
 
-function SwitchNodeComponent({ data }: NodeProps) {
+function SwitchNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as unknown as SwitchNodeData;
 
   return (
@@ -11,13 +11,14 @@ function SwitchNodeComponent({ data }: NodeProps) {
       <Handle
         type="target"
         position={Position.Top}
+        id="target-top"
         className="!w-3 !h-3 !bg-gray-400 !border-2 !border-white"
         style={{ top: 8 }}
       />
 
       {/* 다이아몬드 외형 */}
       <div
-        className="absolute bg-amber-50 border-2 border-amber-400 rounded-sm"
+        className={`absolute bg-amber-50 rounded-sm ${selected ? 'border-[3px] border-blue-400 shadow-lg shadow-blue-100' : 'border-2 border-amber-400'}`}
         style={{
           width: 84,
           height: 84,
@@ -45,13 +46,32 @@ function SwitchNodeComponent({ data }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!w-3 !h-3 !bg-blue-500 !border-2 !border-white"
+        id="source-bottom"
+        className="!w-3 !h-3 !bg-amber-500 !border-2 !border-white"
         style={{ bottom: 8 }}
+      />
+
+      {/* 출력 핸들 - 왼쪽 꼭짓점 */}
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="source-left"
+        className="!w-3 !h-3 !bg-amber-500 !border-2 !border-white"
+        style={{ left: 8 }}
+      />
+
+      {/* 출력 핸들 - 오른쪽 꼭짓점 */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="source-right"
+        className="!w-3 !h-3 !bg-amber-500 !border-2 !border-white"
+        style={{ right: 8 }}
       />
     </div>
   );
 }
 
 export const SwitchNode = memo(SwitchNodeComponent, (prev, next) => {
-  return JSON.stringify(prev.data) === JSON.stringify(next.data);
+  return JSON.stringify(prev.data) === JSON.stringify(next.data) && prev.selected === next.selected;
 });

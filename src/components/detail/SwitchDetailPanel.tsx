@@ -76,6 +76,7 @@ export function SwitchDetailPanel({ nodeId, data, edges, nodes, onSave, onDelete
               {outEdges.map((e) => {
                 const target = nodeMap.get(e.target);
                 const targetData = target?.data as FlowNodeData | undefined;
+                const labelStr = e.label as string | undefined | null;
                 return (
                   <div
                     key={e.id}
@@ -87,9 +88,17 @@ export function SwitchDetailPanel({ nodeId, data, edges, nodes, onSave, onDelete
                     <span className="text-gray-700 truncate flex-1">
                       {targetData?.label ?? '알 수 없음'}
                     </span>
-                    {e.label && (
-                      <span className="text-amber-600 border border-amber-200 rounded-full px-2 py-0.5 bg-amber-50">
-                        {e.label as string}
+                    {labelStr && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 font-semibold text-[11px] ${
+                          labelStr === 'yes'
+                            ? 'bg-green-100 border border-green-300 text-green-700'
+                            : labelStr === 'no'
+                            ? 'bg-red-100 border border-red-300 text-red-700'
+                            : 'bg-amber-50 border border-amber-200 text-amber-600'
+                        }`}
+                      >
+                        {labelStr === 'yes' ? 'Yes' : labelStr === 'no' ? 'No' : labelStr}
                       </span>
                     )}
                   </div>

@@ -1,10 +1,10 @@
-import { useState } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
-  useNodes,
+  useStore,
   type EdgeProps,
+  type ReactFlowState,
 } from '@xyflow/react';
 
 interface Props extends EdgeProps {
@@ -12,9 +12,26 @@ interface Props extends EdgeProps {
   onDelete?: (edgeId: string) => void;
 }
 
+// Yes/No 라벨에 따른 색상 결정
+function getSwitchEdgeStyle(label: string | undefined | null): { stroke: string; markerColor: string } {
+  if (label === 'yes') return { stroke: '#86efac', markerColor: '#86efac' };
+  if (label === 'no') return { stroke: '#fca5a5', markerColor: '#fca5a5' };
+  return { stroke: '#6b7280', markerColor: '#6b7280' };
+}
+
+const selectSourceNodeType = (source: string) => (s: ReactFlowState) =>
+  s.nodes.find((n) => n.id === source)?.type;
+
+const selectHasSelection = (s: ReactFlowState) =>
+  s.nodes.some((n) => n.selected);
+
+const selectIsConnectedToSelected = (source: string, target: string) => (s: ReactFlowState) =>
+  s.nodes.some((n) => n.selected && (n.id === source || n.id === target));
+
 export function EdgeWithLabel({
   id,
   source,
+  target,
   sourceX,
   sourceY,
   targetX,
@@ -23,14 +40,16 @@ export function EdgeWithLabel({
   targetPosition,
   label,
   style,
-  onLabelChange,
   onDelete,
 }: Props) {
-  const [editing, setEditing] = useState(false);
-  const [editValue, setEditValue] = useState('');
-  const nodes = useNodes();
-  const sourceNode = nodes.find((n) => n.id === source);
-  const isFromSwitch = sourceNode?.type === 'switchNode';
+  const sourceNodeType = useStore(selectSourceNodeType(source));
+  const hasSelection = useStore(selectHasSelection);
+  const isConnectedToSelected = useStore(selectIsConnectedToSelected(source, target));
+
+  const isFromSwitch = sourceNodeType === 'switchNode';
+  const isFromEvent = sourceNodeType === 'eventNode';
+
+  const labelStr = label as string | undefined | null;
 
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -41,61 +60,49 @@ export function EdgeWithLabel({
     targetPosition,
   });
 
-  const startEdit = () => {
-    setEditValue((label as string) ?? '');
-    setEditing(true);
-  };
+  const dimmed = hasSelection && !isConnectedToSelected;
+  const strokeWidth = isConnectedToSelected ? 3 : 2;
+  const opacity = dimmed ? 0.3 : 1;
 
-  const saveEdit = () => {
-    onLabelChange?.(id, editValue.trim());
-    setEditing(false);
-  };
+  const baseEdgeStyle = isFromSwitch
+    ? { ...style, stroke: getSwitchEdgeStyle(labelStr).stroke, strokeWidth, opacity }
+    : { ...style, strokeWidth, opacity };
+
+  const edgeStyle = baseEdgeStyle;
 
   return (
     <>
       <BaseEdge
         path={edgePath}
-        style={style}
+        style={edgeStyle}
       />
       <EdgeLabelRenderer>
         <div
-          className="absolute pointer-events-auto"
+          className="absolute pointer-events-auto transition-opacity"
           style={{
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+            opacity,
           }}
         >
           <div className="flex flex-col items-center gap-1">
-            {/* 스위치에서 나가는 엣지만 라벨 편집 가능 */}
-            {isFromSwitch && (
-              editing ? (
-                <input
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={saveEdit}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') saveEdit();
-                    if (e.key === 'Escape') setEditing(false);
-                  }}
-                  autoFocus
-                  className="text-[11px] px-2 py-0.5 border border-blue-400 rounded-full bg-white w-24 focus:outline-none"
-                  placeholder="조건..."
-                />
-              ) : label ? (
-                <span
-                  onClick={startEdit}
-                  className="inline-flex items-center text-[11px] px-2 py-0.5 bg-amber-50 border border-amber-300 rounded-full text-gray-700 cursor-pointer hover:bg-amber-100"
-                >
-                  {label as string}
-                </span>
-              ) : (
-                <button
-                  onClick={startEdit}
-                  className="text-[9px] px-2 py-0.5 bg-amber-50 border border-amber-300 rounded-full hover:bg-amber-100 text-amber-600 flex items-center justify-center leading-none"
-                  title="분기 조건 추가"
-                >
-                  + 조건
-                </button>
-              )
+            {/* 스위치에서 나가는 엣지 — Yes/No 배지 표시 (편집 불가) */}
+            {isFromSwitch && labelStr && (
+              <span
+                className={`inline-flex items-center text-[11px] px-2 py-0.5 rounded-full font-semibold select-none ${
+                  labelStr === 'yes'
+                    ? 'bg-green-100 border border-green-300 text-green-700'
+                    : 'bg-red-100 border border-red-300 text-red-700'
+                }`}
+              >
+                {labelStr === 'yes' ? 'Yes' : 'No'}
+              </span>
+            )}
+
+            {/* 이벤트에서 나가는 엣지 — 선택지 라벨 표시 (읽기 전용) */}
+            {isFromEvent && labelStr && (
+              <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full select-none bg-gray-100 border border-gray-300 text-gray-600 max-w-[120px] truncate">
+                {labelStr}
+              </span>
             )}
           </div>
 
