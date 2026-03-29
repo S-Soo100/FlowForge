@@ -69,7 +69,7 @@ export function useEventGraph(projectId: string) {
         id: e.id,
         source: e.source_node_id,
         target: e.target_node_id,
-        sourceHandle: e.source_handle || 'source-bottom',
+        sourceHandle: e.source_handle || undefined,
         targetHandle: undefined,
         label: e.label || undefined,
         type: 'edgeWithLabel',
