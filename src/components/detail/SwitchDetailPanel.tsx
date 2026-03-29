@@ -98,7 +98,7 @@ export function SwitchDetailPanel({ nodeId, data, edges, nodes, onSave, onDelete
                             : 'bg-amber-50 border border-amber-200 text-amber-600'
                         }`}
                       >
-                        {labelStr === 'yes' ? 'Yes' : labelStr === 'no' ? 'No' : labelStr}
+                        {labelStr === 'yes' ? 'On' : labelStr === 'no' ? 'Off' : labelStr}
                       </span>
                     )}
                   </div>

@@ -59,7 +59,7 @@ export function EdgeWithLabel({
 
   // 이벤트 소스의 선택지 목록
   const eventChoices = isFromEvent
-    ? ((sourceNode?.data as unknown as EventNodeData)?.choices ?? null)
+    ? ((sourceNode?.data as unknown as EventNodeData)?.choices?.items ?? null)
     : null;
 
   const labelStr = label as string | undefined | null;
@@ -107,7 +107,7 @@ export function EdgeWithLabel({
                     : 'bg-red-100 border border-red-300 text-red-700'
                 }`}
               >
-                {labelStr === 'yes' ? 'Yes' : 'No'}
+                {labelStr === 'yes' ? 'On' : 'Off'}
               </span>
             )}
 
