@@ -12,8 +12,8 @@ function SwitchNodeComponent({ data, selected }: NodeProps) {
         type="target"
         position={Position.Top}
         id="target-top"
-        className="!w-3 !h-3 !bg-gray-400 !border-2 !border-white"
-        style={{ top: 8 }}
+        className="!w-4 !h-4 !bg-gray-400 !border-2 !border-white !z-10"
+        style={{ top: 2 }}
       />
 
       {/* 다이아몬드 외형 */}

@@ -315,14 +315,29 @@ export function useEventGraph(projectId: string) {
         return;
       }
 
-      // 일반 노드 → 기존 동작
+      // 이벤트 노드 → 선택지 자동 할당
+      const isFromEvent = sourceNode?.type === 'eventNode';
+      let autoLabel = '';
+
+      if (isFromEvent) {
+        const eventData = sourceNode?.data as EventNodeData | undefined;
+        const choices = eventData?.choices;
+        if (choices && choices.length > 0) {
+          const outEdges = edges.filter((e) => e.source === params.source);
+          const nextIdx = outEdges.length;
+          if (nextIdx < choices.length) {
+            autoLabel = choices[nextIdx];
+          }
+        }
+      }
+
       const { data, error } = await supabase
         .from('edges')
         .insert({
           project_id: projectId,
           source_node_id: params.source,
           target_node_id: params.target,
-          label: '',
+          label: autoLabel,
           source_handle: params.sourceHandle || null,
           sort_order: 0,
         })
@@ -339,7 +354,7 @@ export function useEventGraph(projectId: string) {
           source: edge.source_node_id,
           target: edge.target_node_id,
           sourceHandle: edge.source_handle || undefined,
-          label: edge.label || undefined,
+          label: autoLabel || undefined,
           type: 'edgeWithLabel',
           data: { dbId: edge.id },
         },
