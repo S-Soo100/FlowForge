@@ -320,7 +320,7 @@ function AddBlockButton({ hasChoices, onAddBlock, onAddChoices }: AddBlockButton
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded shadow-md z-10 py-1">
+        <div className="absolute bottom-full right-0 mb-1 bg-white border border-gray-200 rounded shadow-md z-10 py-1 min-w-[160px] whitespace-nowrap">
           {menuItems.map((item) => (
             <button
               key={item.label}
