@@ -7,6 +7,12 @@ export interface ProgressionBlock {
   content: string;
 }
 
+// ── 이벤트 선택지 ──
+export interface ChoicesData {
+  label?: string;
+  items: string[];
+}
+
 // ── 게임 노드 (DB row) ──
 export interface GameNode {
   id: string;
@@ -41,7 +47,7 @@ export interface EventNodeData {
   displayId: string;           // E001
   declaration?: string;        // 이벤트 발생 선언 (한 줄)
   progression?: ProgressionBlock[] | null;  // 이벤트 진행 블럭 배열
-  choices?: string[] | null;   // 이벤트 선택지 배열
+  choices?: ChoicesData | null;   // 이벤트 선택지
   nodeType: 'event';
   dbId: string;
   [key: string]: unknown;
@@ -85,7 +91,7 @@ export interface ExportedNode {
   name: string;
   declaration?: string;
   progression?: ProgressionBlock[] | null;
-  choices?: string[] | null;
+  choices?: ChoicesData | null;
   next: Array<{
     target: string;
     targetDisplayId?: string;

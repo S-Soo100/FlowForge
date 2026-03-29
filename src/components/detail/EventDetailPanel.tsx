@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { EventNodeData, ProgressionBlock } from '../../types';
+import type { EventNodeData, ProgressionBlock, ChoicesData } from '../../types';
 
 interface Props {
   nodeId: string;
@@ -31,10 +31,9 @@ interface BlockItemProps {
   onChange: (index: number, updated: ProgressionBlock) => void;
   onDelete: (index: number) => void;
   onDragStart: (index: number) => void;
-  onDragOver: (index: number) => void;
+  onDragOver: (e: React.DragEvent<HTMLDivElement>, index: number) => void;
   onDrop: () => void;
   isDragging: boolean;
-  isDropTarget: boolean;
 }
 
 function BlockItem({
@@ -46,28 +45,27 @@ function BlockItem({
   onDragOver,
   onDrop,
   isDragging,
-  isDropTarget,
 }: BlockItemProps) {
   const meta = BLOCK_TYPE_META[block.type];
 
   return (
     <div
-      className={`relative rounded border border-gray-200 bg-white transition-all ${
+      draggable
+      className={`relative rounded border border-gray-200 bg-white transition-all cursor-grab active:cursor-grabbing ${
         isDragging ? 'opacity-40' : 'opacity-100'
-      } ${isDropTarget ? 'border-blue-400 border-dashed border-2' : ''}`}
+      }`}
       style={{ borderLeft: `3px solid ${meta.borderColor}` }}
+      onDragStart={() => onDragStart(index)}
       onDragOver={(e) => {
         e.preventDefault();
-        onDragOver(index);
+        onDragOver(e, index);
       }}
       onDrop={onDrop}
     >
       <div className="flex items-center gap-2 px-2 pt-2 pb-1">
-        {/* 드래그 핸들 */}
+        {/* 드래그 핸들 (시각적 힌트) */}
         <div
-          draggable
-          onDragStart={() => onDragStart(index)}
-          className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 select-none flex-shrink-0 text-base leading-none"
+          className="text-gray-300 hover:text-gray-500 select-none flex-shrink-0 text-base leading-none"
           title="드래그해서 순서 변경"
         >
           ⠿
@@ -121,19 +119,22 @@ function BlockItem({
   );
 }
 
-// ── 선택지 태그 입력 ──
-interface ChoicesInputProps {
+// ── 선택지 블럭 카드 ──
+interface ChoicesBlockProps {
+  label: string;
+  onLabelChange: (label: string) => void;
   choices: string[];
   onChange: (choices: string[]) => void;
+  onRemove: () => void;
 }
 
-function ChoicesInput({ choices, onChange }: ChoicesInputProps) {
+function ChoicesBlock({ label, onLabelChange, choices, onChange, onRemove }: ChoicesBlockProps) {
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const addChoice = (text: string) => {
     const trimmed = text.trim();
-    if (trimmed && !choices.includes(trimmed)) {
+    if (trimmed) {
       onChange([...choices, trimmed]);
     }
   };
@@ -143,15 +144,19 @@ function ChoicesInput({ choices, onChange }: ChoicesInputProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && inputValue === '' && choices.length > 0) {
-      // 빈 상태에서 백스페이스 → 마지막 태그 삭제
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (inputValue.trim()) {
+        addChoice(inputValue);
+        setInputValue('');
+      }
+    } else if (e.key === 'Backspace' && inputValue === '' && choices.length > 0) {
       removeChoice(choices.length - 1);
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    // ", " (콤마+스페이스)로 태그 확정
     if (val.endsWith(', ')) {
       const candidate = val.slice(0, -2);
       if (candidate.trim()) {
@@ -166,7 +171,6 @@ function ChoicesInput({ choices, onChange }: ChoicesInputProps) {
   };
 
   const handleBlur = () => {
-    // 포커스 아웃 시 남은 내용이 있으면 태그로 확정
     if (inputValue.trim()) {
       addChoice(inputValue);
       setInputValue('');
@@ -175,37 +179,171 @@ function ChoicesInput({ choices, onChange }: ChoicesInputProps) {
 
   return (
     <div
-      className="min-h-[38px] w-full border border-gray-300 rounded px-2 py-1.5 flex flex-wrap gap-1.5 items-center cursor-text focus-within:ring-1 focus-within:ring-blue-400 focus-within:border-blue-400"
-      onClick={() => inputRef.current?.focus()}
+      className="rounded border border-gray-200 bg-white"
+      style={{ borderLeft: '3px solid #f59e0b' }}
     >
-      {choices.map((choice, i) => (
-        <span
-          key={i}
-          className="inline-flex items-center gap-1 bg-gray-100 border border-gray-200 text-gray-700 text-xs rounded-full px-2.5 py-0.5"
-        >
-          {choice}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              removeChoice(i);
-            }}
-            className="text-gray-400 hover:text-red-400 leading-none"
-          >
-            ×
-          </button>
+      <div className="flex items-center gap-2 px-2 pt-2 pb-1">
+        {/* 고정 아이콘 (드래그 핸들 자리) */}
+        <div className="text-gray-300 select-none flex-shrink-0 text-base leading-none">
+          📋
+        </div>
+
+        {/* 고정 라벨 */}
+        <span className="text-xs font-medium text-amber-600 flex-shrink-0">
+          선택지
         </span>
-      ))}
-      <input
-        ref={inputRef}
-        type="text"
-        value={inputValue}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        onBlur={handleBlur}
-        placeholder={choices.length === 0 ? '선택지 입력 (콤마+스페이스로 구분)' : ''}
-        className="flex-1 min-w-[120px] text-xs outline-none bg-transparent"
-      />
+
+        {/* 삭제 버튼 */}
+        <button
+          onClick={onRemove}
+          className="ml-auto text-gray-300 hover:text-red-400 text-sm flex-shrink-0 leading-none"
+          title="선택지 삭제"
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="px-2 pb-2 space-y-1.5">
+        {/* 선택지 라벨 입력 */}
+        <input
+          type="text"
+          value={label}
+          onChange={(e) => onLabelChange(e.target.value)}
+          placeholder="선택지 라벨 (선택사항)"
+          className="w-full text-xs border border-gray-100 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-300 bg-gray-50"
+        />
+
+        {/* 번호 붙은 선택지 태그 */}
+        {choices.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {choices.map((choice, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-full px-2.5 py-0.5"
+              >
+                {i + 1}. {choice}
+                <button
+                  type="button"
+                  onClick={() => removeChoice(i)}
+                  className="text-amber-400 hover:text-red-400 leading-none"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* 입력 필드 */}
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
+          placeholder="선택지를 입력하고 Enter"
+          className="w-full text-xs border border-gray-100 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-300 bg-gray-50"
+        />
+
+        {choices.length > 0 && (
+          <p className="text-[10px] text-gray-400">
+            나가는 엣지 라벨이 선택지 순서대로 자동 업데이트됩니다.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── 블럭 추가 버튼 (드롭다운 메뉴) ──
+interface AddBlockButtonProps {
+  hasChoices: boolean;
+  onAddBlock: (type: ProgressionBlock['type']) => void;
+  onAddChoices: () => void;
+}
+
+function AddBlockButton({ hasChoices, onAddBlock, onAddChoices }: AddBlockButtonProps) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // 바깥 클릭 → 메뉴 닫힘
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const menuItems: Array<{
+    label: string;
+    borderColor: string;
+    action: () => void;
+    disabled?: boolean;
+    hint?: string;
+  }> = [
+    {
+      label: '텍스트 패널',
+      borderColor: '#4ade80',
+      action: () => { onAddBlock('text'); setOpen(false); },
+    },
+    {
+      label: '시스템 패널',
+      borderColor: '#60a5fa',
+      action: () => { onAddBlock('system'); setOpen(false); },
+    },
+    {
+      label: '배경 패널',
+      borderColor: '#c084fc',
+      action: () => { onAddBlock('background'); setOpen(false); },
+    },
+    {
+      label: '선택지',
+      borderColor: '#f59e0b',
+      action: () => { onAddChoices(); setOpen(false); },
+      disabled: hasChoices,
+      hint: hasChoices ? '(이미 추가됨)' : undefined,
+    },
+  ];
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        onClick={() => setOpen((prev) => !prev)}
+        className="w-full py-2 border border-dashed border-gray-300 rounded text-xs text-gray-400 hover:text-blue-500 hover:border-blue-400 transition-colors text-center"
+      >
+        + 블럭 추가
+      </button>
+
+      {open && (
+        <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded shadow-md z-10 py-1">
+          {menuItems.map((item) => (
+            <button
+              key={item.label}
+              onClick={item.disabled ? undefined : item.action}
+              disabled={item.disabled}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors ${
+                item.disabled
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <span
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ backgroundColor: item.disabled ? '#d1d5db' : item.borderColor }}
+              />
+              <span>{item.label}</span>
+              {item.hint && (
+                <span className="ml-auto text-[10px] text-gray-300">{item.hint}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -224,19 +362,25 @@ export function EventDetailPanel({
   const [blocks, setBlocks] = useState<ProgressionBlock[]>(
     data.progression ?? []
   );
-  const [choices, setChoices] = useState<string[]>(data.choices ?? []);
+  const [choices, setChoices] = useState<string[]>(data.choices?.items ?? []);
+  const [choicesLabel, setChoicesLabel] = useState<string>(data.choices?.label ?? '');
+  const [showChoices, setShowChoices] = useState<boolean>(
+    data.choices !== null && data.choices !== undefined
+  );
   const [saving, setSaving] = useState(false);
 
   // 드래그 상태
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [insertIndex, setInsertIndex] = useState<number | null>(null);
 
   // 노드 변경 시 폼 리셋
   useEffect(() => {
     setName(data.label);
     setDeclaration(data.declaration ?? '');
     setBlocks(data.progression ?? []);
-    setChoices(data.choices ?? []);
+    setChoices(data.choices?.items ?? []);
+    setChoicesLabel(data.choices?.label ?? '');
+    setShowChoices(data.choices !== null && data.choices !== undefined);
   }, [nodeId, data]);
 
   // ── 블럭 핸들러 ──
@@ -248,8 +392,8 @@ export function EventDetailPanel({
     setBlocks((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleBlockAdd = () => {
-    setBlocks((prev) => [...prev, { type: 'text', content: '' }]);
+  const handleBlockAdd = (type: ProgressionBlock['type'] = 'text') => {
+    setBlocks((prev) => [...prev, { type, content: '' }]);
   };
 
   // ── 드래그 앤 드롭 ──
@@ -257,23 +401,32 @@ export function EventDetailPanel({
     setDragIndex(index);
   };
 
-  const handleDragOver = (index: number) => {
-    if (dragIndex === null || dragIndex === index) return;
-    setDropIndex(index);
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    if (dragIndex === null) return;
+    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const newInsert = e.clientY < midY ? index : index + 1;
+    setInsertIndex(newInsert);
   };
 
   const handleDrop = () => {
-    if (dragIndex === null || dropIndex === null || dragIndex === dropIndex) {
+    if (dragIndex === null || insertIndex === null) {
       setDragIndex(null);
-      setDropIndex(null);
+      setInsertIndex(null);
+      return;
+    }
+    if (insertIndex === dragIndex || insertIndex === dragIndex + 1) {
+      setDragIndex(null);
+      setInsertIndex(null);
       return;
     }
     const newBlocks = [...blocks];
     const [moved] = newBlocks.splice(dragIndex, 1);
-    newBlocks.splice(dropIndex, 0, moved);
+    const adjustedInsert = insertIndex > dragIndex ? insertIndex - 1 : insertIndex;
+    newBlocks.splice(adjustedInsert, 0, moved);
     setBlocks(newBlocks);
     setDragIndex(null);
-    setDropIndex(null);
+    setInsertIndex(null);
   };
 
   // ── 저장 ──
@@ -282,7 +435,10 @@ export function EventDetailPanel({
 
     const progression: ProgressionBlock[] | null =
       blocks.length > 0 ? blocks : null;
-    const choicesData: string[] | null = choices.length > 0 ? choices : null;
+    const choicesData: ChoicesData | null =
+      choices.length > 0 || showChoices
+        ? { label: choicesLabel.trim() || undefined, items: choices }
+        : null;
 
     await onSave(nodeId, {
       name,
@@ -293,9 +449,9 @@ export function EventDetailPanel({
       },
     });
 
-    // 선택지 → 나가는 엣지 라벨 동기화
+    // 선택지 → 나가는 엣지 라벨 동기화 (items만 넘김)
     if (onSyncChoices) {
-      await onSyncChoices(nodeId, choicesData);
+      await onSyncChoices(nodeId, choices.length > 0 ? choices : null);
     }
 
     setSaving(false);
@@ -358,12 +514,11 @@ export function EventDetailPanel({
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
               이벤트 진행
             </label>
-            <button
-              onClick={handleBlockAdd}
-              className="text-xs text-blue-500 hover:text-blue-700 font-medium"
-            >
-              + 블럭 추가
-            </button>
+            <AddBlockButton
+              hasChoices={showChoices}
+              onAddBlock={handleBlockAdd}
+              onAddChoices={() => setShowChoices(true)}
+            />
           </div>
 
           {/* 타입 범례 */}
@@ -377,30 +532,26 @@ export function EventDetailPanel({
             <span style={{ borderLeft: '2px solid #c084fc', paddingLeft: 4 }}>
               배경
             </span>
+            <span style={{ borderLeft: '2px solid #f59e0b', paddingLeft: 4 }}>
+              선택지
+            </span>
           </div>
 
           <div
-            className="space-y-2"
+            className="flex flex-col gap-0"
             onDragEnd={() => {
               setDragIndex(null);
-              setDropIndex(null);
+              setInsertIndex(null);
             }}
           >
-            {blocks.length === 0 ? (
-              <div className="text-xs text-gray-400 text-center py-4 border border-dashed border-gray-200 rounded">
-                진행 블럭 없음
-                <br />
-                <button
-                  onClick={handleBlockAdd}
-                  className="mt-1 text-blue-400 hover:text-blue-600 underline"
-                >
-                  블럭 추가
-                </button>
-              </div>
-            ) : (
-              blocks.map((block, i) => (
+            {/* insertIndex === 0 일 때 맨 위 인디케이터 */}
+            {dragIndex !== null && insertIndex === 0 && (
+              <div className="h-[2px] bg-blue-500 rounded-full my-[-1px] mx-0.5" />
+            )}
+
+            {blocks.map((block, i) => (
+              <div key={i} className="flex flex-col gap-0">
                 <BlockItem
-                  key={i}
                   block={block}
                   index={i}
                   total={blocks.length}
@@ -410,24 +561,41 @@ export function EventDetailPanel({
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
                   isDragging={dragIndex === i}
-                  isDropTarget={dropIndex === i}
                 />
-              ))
-            )}
-          </div>
-        </div>
+                {/* 각 블럭 아래 insertion indicator */}
+                {dragIndex !== null && insertIndex === i + 1 ? (
+                  <div className="h-[2px] bg-blue-500 rounded-full my-[-1px] mx-0.5" />
+                ) : (
+                  <div className="h-2" />
+                )}
+              </div>
+            ))}
 
-        {/* 이벤트 선택지 */}
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            이벤트 선택지
-          </label>
-          <ChoicesInput choices={choices} onChange={setChoices} />
-          {choices.length > 0 && (
-            <p className="text-[10px] text-gray-400">
-              나가는 엣지 라벨이 선택지 순서대로 자동 업데이트됩니다.
-            </p>
-          )}
+            {/* 선택지 카드 — 드래그 대상 아님, 항상 맨 끝 고정 */}
+            {showChoices && (
+              <>
+                <ChoicesBlock
+                  label={choicesLabel}
+                  onLabelChange={setChoicesLabel}
+                  choices={choices}
+                  onChange={setChoices}
+                  onRemove={() => {
+                    setShowChoices(false);
+                    setChoices([]);
+                    setChoicesLabel('');
+                  }}
+                />
+                <div className="h-2" />
+              </>
+            )}
+
+            {/* 끝에 추가 버튼 박스 */}
+            <AddBlockButton
+              hasChoices={showChoices}
+              onAddBlock={handleBlockAdd}
+              onAddChoices={() => setShowChoices(true)}
+            />
+          </div>
         </div>
       </div>
 

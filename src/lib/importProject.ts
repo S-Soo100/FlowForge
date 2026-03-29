@@ -24,7 +24,7 @@ export async function importProject(
         ? {
             declaration: n.declaration ?? null,
             progression: n.progression ?? null,
-            choices: n.choices ?? null,
+            choices: Array.isArray(n.choices) ? { items: n.choices } : (n.choices ?? null),
           }
         : {};
 

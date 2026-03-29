@@ -2,7 +2,20 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Node, Edge, OnNodesChange, OnEdgesChange, OnConnect } from '@xyflow/react';
 import { applyNodeChanges, applyEdgeChanges } from '@xyflow/react';
 import { supabase } from '../lib/supabase';
-import type { GameNode, GameEdge, NodeType, EventNodeData, SwitchNodeData, FlowNodeData, ProgressionBlock } from '../types';
+import type { GameNode, GameEdge, NodeType, EventNodeData, SwitchNodeData, FlowNodeData, ProgressionBlock, ChoicesData } from '../types';
+
+// 하위호환 정규화: string[] (레거시) 또는 ChoicesData 모두 처리
+function normalizeChoices(raw: unknown): ChoicesData | null {
+  if (!raw) return null;
+  if (Array.isArray(raw)) {
+    return raw.length > 0 ? { items: raw as string[] } : null;
+  }
+  if (typeof raw === 'object' && raw !== null && 'items' in raw) {
+    const data = raw as ChoicesData;
+    return data.items.length > 0 || data.label ? data : null;
+  }
+  return null;
+}
 
 export type { EventNodeData, SwitchNodeData, FlowNodeData };
 
@@ -55,7 +68,7 @@ export function useEventGraph(projectId: string) {
             displayId: n.display_id,
             declaration: (n.node_data?.declaration as string) || undefined,
             progression: (n.node_data?.progression as ProgressionBlock[] | null) ?? null,
-            choices: (n.node_data?.choices as string[] | null) ?? null,
+            choices: normalizeChoices(n.node_data?.choices),
             nodeType: 'event',
             dbId: n.id,
           };
@@ -214,7 +227,7 @@ export function useEventGraph(projectId: string) {
                 label: updates.name ?? n.data.label,
                 declaration: nd.declaration as string | undefined,
                 progression: nd.progression as ProgressionBlock[] | null ?? null,
-                choices: nd.choices as string[] | null ?? null,
+                choices: normalizeChoices(nd.choices),
               },
             };
           }
@@ -325,7 +338,7 @@ export function useEventGraph(projectId: string) {
       // 이벤트 노드에서 선택지가 있으면 → 선택 팝업 대기
       const isFromEvent = sourceNode?.type === 'eventNode';
       const eventData = isFromEvent ? (sourceNode?.data as EventNodeData | undefined) : undefined;
-      const hasChoices = isFromEvent && eventData?.choices && eventData.choices.length > 0;
+      const hasChoices = isFromEvent && eventData?.choices && eventData.choices.items.length > 0;
 
       const { data, error } = await supabase
         .from('edges')
@@ -360,7 +373,7 @@ export function useEventGraph(projectId: string) {
         setPendingChoiceEdge({
           edgeId: edge.id,
           sourceId: params.source,
-          choices: eventData!.choices!,
+          choices: eventData!.choices!.items,
         });
       }
     },

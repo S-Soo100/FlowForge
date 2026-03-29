@@ -6,7 +6,7 @@ function EventNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as unknown as EventNodeData;
 
   const progressionCount = nodeData.progression?.length ?? 0;
-  const choicesCount = nodeData.choices?.length ?? 0;
+  const choicesCount = nodeData.choices?.items?.length ?? 0;
 
   return (
     <div className={`bg-white border-2 rounded-lg shadow-sm min-w-[180px] max-w-[240px] hover:shadow-md transition-all ${selected ? 'border-blue-400 ring-2 ring-blue-300 shadow-lg shadow-blue-100' : 'border-gray-300'}`}>
