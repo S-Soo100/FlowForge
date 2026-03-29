@@ -1,5 +1,11 @@
 // ── 노드 타입 ──
-export type NodeType = 'event' | 'switch' | 'setter';
+export type NodeType = 'event' | 'switch';
+
+// ── 이벤트 진행 블럭 ──
+export interface ProgressionBlock {
+  type: 'system' | 'text' | 'background';
+  content: string;
+}
 
 // ── 게임 노드 (DB row) ──
 export interface GameNode {
@@ -8,8 +14,8 @@ export interface GameNode {
   node_type: NodeType;
   display_id: string;   // E001, S001
   name: string;
-  summary?: string;     // event only
-  detail?: string;      // event only
+  summary?: string;     // 레거시 (더 이상 사용 안 함, 빈 문자열 유지)
+  detail?: string;      // 레거시 (더 이상 사용 안 함, 빈 문자열 유지)
   node_data: Record<string, unknown>;
   position_x: number;
   position_y: number;
@@ -30,10 +36,11 @@ export interface GameEdge {
 
 // ── React Flow 노드 data ──
 export interface EventNodeData {
-  label: string;
-  displayId: string;
-  summary?: string;
-  detail?: string;
+  label: string;               // 이벤트 이름
+  displayId: string;           // E001
+  declaration?: string;        // 이벤트 발생 선언 (한 줄)
+  progression?: ProgressionBlock[] | null;  // 이벤트 진행 블럭 배열
+  choices?: string[] | null;   // 이벤트 선택지 배열
   nodeType: 'event';
   dbId: string;
   [key: string]: unknown;
@@ -47,17 +54,7 @@ export interface SwitchNodeData {
   [key: string]: unknown;
 }
 
-export interface SetterNodeData {
-  label: string;
-  displayId: string;
-  targetDisplayId: string;
-  targetValue: string;
-  nodeType: 'setter';
-  dbId: string;
-  [key: string]: unknown;
-}
-
-export type FlowNodeData = EventNodeData | SwitchNodeData | SetterNodeData;
+export type FlowNodeData = EventNodeData | SwitchNodeData;
 
 // ── 프로젝트 ──
 export type ProjectRole = 'editor' | 'viewer';
@@ -85,9 +82,9 @@ export interface ExportedNode {
   displayId: string;
   nodeType: NodeType;
   name: string;
-  summary?: string;
-  detail?: string;
-  nodeData?: Record<string, unknown>;
+  declaration?: string;
+  progression?: ProgressionBlock[] | null;
+  choices?: string[] | null;
   next: Array<{
     target: string;
     targetDisplayId?: string;

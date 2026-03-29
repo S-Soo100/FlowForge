@@ -1,30 +1,66 @@
 import { useEffect, useState } from 'react';
-import type { EventNodeData } from '../../types';
+import type { EventNodeData, ProgressionBlock } from '../../types';
 
 interface Props {
   nodeId: string;
   data: EventNodeData;
-  onSave: (nodeId: string, updates: { name?: string; summary?: string; detail?: string }) => Promise<void>;
+  onSave: (nodeId: string, updates: { name?: string; node_data?: Record<string, unknown> }) => Promise<void>;
   onDelete: (nodeId: string) => Promise<void>;
   onClose: () => void;
 }
 
 export function EventDetailPanel({ nodeId, data, onSave, onDelete, onClose }: Props) {
   const [name, setName] = useState(data.label);
-  const [summary, setSummary] = useState(data.summary ?? '');
-  const [detail, setDetail] = useState(data.detail ?? '');
+  const [declaration, setDeclaration] = useState(data.declaration ?? '');
+  const [progressionText, setProgressionText] = useState(
+    data.progression ? JSON.stringify(data.progression, null, 2) : ''
+  );
+  const [choicesText, setChoicesText] = useState(
+    data.choices ? JSON.stringify(data.choices, null, 2) : ''
+  );
   const [saving, setSaving] = useState(false);
 
   // 노드 변경 시 폼 리셋
   useEffect(() => {
     setName(data.label);
-    setSummary(data.summary ?? '');
-    setDetail(data.detail ?? '');
+    setDeclaration(data.declaration ?? '');
+    setProgressionText(data.progression ? JSON.stringify(data.progression, null, 2) : '');
+    setChoicesText(data.choices ? JSON.stringify(data.choices, null, 2) : '');
   }, [nodeId, data]);
 
   const handleSave = async () => {
     setSaving(true);
-    await onSave(nodeId, { name, summary, detail });
+
+    let progression: ProgressionBlock[] | null = null;
+    if (progressionText.trim()) {
+      try {
+        progression = JSON.parse(progressionText) as ProgressionBlock[];
+      } catch {
+        alert('progression JSON 형식이 올바르지 않습니다.');
+        setSaving(false);
+        return;
+      }
+    }
+
+    let choices: string[] | null = null;
+    if (choicesText.trim()) {
+      try {
+        choices = JSON.parse(choicesText) as string[];
+      } catch {
+        alert('choices JSON 형식이 올바르지 않습니다.');
+        setSaving(false);
+        return;
+      }
+    }
+
+    await onSave(nodeId, {
+      name,
+      node_data: {
+        declaration: declaration || undefined,
+        progression: progression,
+        choices: choices,
+      },
+    });
     setSaving(false);
   };
 
@@ -61,31 +97,45 @@ export function EventDetailPanel({ nodeId, data, onSave, onDelete, onClose }: Pr
           />
         </div>
 
-        {/* 한 줄 요약 */}
+        {/* 이벤트 발생 선언 */}
         <div className="space-y-1">
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            한 줄 요약
+            이벤트 발생 선언
           </label>
           <input
             type="text"
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            placeholder="한 줄 요약"
+            value={declaration}
+            onChange={(e) => setDeclaration(e.target.value)}
+            placeholder="예: 촌장이 주인공에게 다가온다"
             className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
-        {/* 상세 내용 */}
+        {/* 진행 블럭 (임시 JSON 편집) */}
         <div className="space-y-1">
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            이벤트 상세 내용
+            진행 블럭 <span className="text-gray-400 normal-case font-normal">(JSON — Phase 3에서 UI 개선 예정)</span>
           </label>
           <textarea
-            value={detail}
-            onChange={(e) => setDetail(e.target.value)}
-            placeholder="이벤트 상세 내용"
-            rows={9}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-y focus:outline-none focus:ring-1 focus:ring-blue-500"
+            value={progressionText}
+            onChange={(e) => setProgressionText(e.target.value)}
+            placeholder={`[\n  { "type": "text", "content": "대사 내용" }\n]`}
+            rows={6}
+            className="w-full px-3 py-2 text-xs font-mono border border-gray-300 rounded resize-y focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* 선택지 (임시 JSON 편집) */}
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            선택지 <span className="text-gray-400 normal-case font-normal">(JSON — Phase 3에서 UI 개선 예정)</span>
+          </label>
+          <textarea
+            value={choicesText}
+            onChange={(e) => setChoicesText(e.target.value)}
+            placeholder={`["선택지 A", "선택지 B"]`}
+            rows={3}
+            className="w-full px-3 py-2 text-xs font-mono border border-gray-300 rounded resize-y focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
       </div>

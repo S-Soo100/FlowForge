@@ -9,7 +9,6 @@ import { useProjectRole } from '../hooks/useProjectRole';
 import { EventCanvas } from '../components/graph/EventCanvas';
 import { EventDetailPanel } from '../components/detail/EventDetailPanel';
 import { SwitchDetailPanel } from '../components/detail/SwitchDetailPanel';
-import { SetterDetailPanel } from '../components/detail/SetterDetailPanel';
 import { ValidationPanel } from '../components/graph/ValidationPanel';
 import { ProjectSettingsPanel } from '../components/project/ProjectSettingsPanel';
 import { Toolbar } from '../components/graph/Toolbar';
@@ -18,7 +17,7 @@ import { exportProject, downloadJson } from '../lib/exportProject';
 import { importProject } from '../lib/importProject';
 import { getAutoLayout } from '../lib/autoLayout';
 import { validateGraph, type ValidationWarning } from '../lib/validate';
-import type { Project, NodeType, ExportedProject, EventNodeData, SwitchNodeData, SetterNodeData, FlowNodeData } from '../types';
+import type { Project, NodeType, ExportedProject, EventNodeData, SwitchNodeData, FlowNodeData } from '../types';
 
 function EditorContent() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -149,7 +148,7 @@ function EditorContent() {
   // ── 노드 수정 (히스토리 포함) ──
   const handleUpdateNode = useCallback(async (
     nodeId: string,
-    updates: { name?: string; summary?: string; detail?: string; node_data?: Record<string, unknown> }
+    updates: { name?: string; node_data?: Record<string, unknown> }
   ) => {
     history.pushSnapshot(graph.nodes, graph.edges);
     await graph.updateNode(nodeId, updates);
@@ -189,10 +188,6 @@ function EditorContent() {
     : null;
 
   const selectedNodeData = selectedNode?.data as FlowNodeData | undefined;
-
-  const switchNodesForSetter = graph.nodes
-    .filter((n) => n.data.nodeType === 'switch')
-    .map((n) => ({ displayId: n.data.displayId as string, name: n.data.label as string }));
 
   if (!project || graph.loading || roleLoading) {
     return (
@@ -258,18 +253,6 @@ function EditorContent() {
             onSave={handleUpdateNode}
             onDelete={handleDeleteNode}
             onClose={() => setSelectedNodeId(null)}
-          />
-        )}
-
-        {selectedNode && selectedNodeData?.nodeType === 'setter' && (
-          <SetterDetailPanel
-            nodeId={selectedNode.id}
-            data={selectedNodeData as SetterNodeData}
-            switchNodes={switchNodesForSetter}
-            onSave={handleUpdateNode}
-            onDelete={handleDeleteNode}
-            onClose={() => setSelectedNodeId(null)}
-            isReadOnly={isReadOnly}
           />
         )}
 

@@ -19,16 +19,9 @@ export function getAutoLayout(
 
   for (const node of nodes) {
     const data = node.data as unknown as FlowNodeData;
-    // 스위치: 120x120, 세터: 150x70, 이벤트: 200x100
-    let width: number;
-    let height: number;
-    if (data?.nodeType === 'switch') {
-      width = 120; height = 120;
-    } else if (data?.nodeType === 'setter') {
-      width = 150; height = 70;
-    } else {
-      width = 200; height = 100;
-    }
+    // 스위치: 120x120, 이벤트: 200x100
+    const width = data?.nodeType === 'switch' ? 120 : 200;
+    const height = data?.nodeType === 'switch' ? 120 : 100;
     g.setNode(node.id, { width, height });
   }
 
@@ -41,15 +34,8 @@ export function getAutoLayout(
   return nodes.map((node) => {
     const data = node.data as unknown as FlowNodeData;
     const pos = g.node(node.id);
-    let halfW: number;
-    let halfH: number;
-    if (data?.nodeType === 'switch') {
-      halfW = 60; halfH = 60;
-    } else if (data?.nodeType === 'setter') {
-      halfW = 75; halfH = 35;
-    } else {
-      halfW = 100; halfH = 50;
-    }
+    const halfW = data?.nodeType === 'switch' ? 60 : 100;
+    const halfH = data?.nodeType === 'switch' ? 60 : 50;
     return {
       ...node,
       position: { x: pos.x - halfW, y: pos.y - halfH },

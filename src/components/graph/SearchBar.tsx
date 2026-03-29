@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useReactFlow } from '@xyflow/react';
-import type { FlowNodeData, SetterNodeData } from '../../types';
+import type { FlowNodeData } from '../../types';
 
 export function SearchBar() {
   const [query, setQuery] = useState('');
@@ -21,21 +21,11 @@ export function SearchBar() {
       const nodes = getNodes();
       const matched = nodes.filter((n) => {
         const data = n.data as unknown as FlowNodeData;
-        const baseMatch =
+        return (
           data.label?.toLowerCase().includes(q) ||
           data.displayId?.toLowerCase().includes(q) ||
-          data.nodeType?.toLowerCase().includes(q);
-
-        if (data.nodeType === 'event') {
-          return baseMatch || data.summary?.toLowerCase().includes(q);
-        }
-        if (data.nodeType === 'setter') {
-          const sd = data as SetterNodeData;
-          return baseMatch
-            || sd.targetDisplayId?.toLowerCase().includes(q)
-            || sd.targetValue?.toLowerCase().includes(q);
-        }
-        return baseMatch;
+          data.nodeType?.toLowerCase().includes(q)
+        );
       });
 
       setResults(
@@ -89,7 +79,6 @@ export function SearchBar() {
 
   const nodeTypeIcon = (nodeType: string) => {
     if (nodeType === 'switch') return '◇';
-    if (nodeType === 'setter') return '▣';
     return '□';
   };
 
@@ -104,7 +93,7 @@ export function SearchBar() {
             if (e.key === 'Enter' && results.length > 0) jumpToNode(results[0].id);
           }}
           autoFocus
-          placeholder="이름, ID, 요약..."
+          placeholder="이름, ID..."
           className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-56"
         />
         <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 text-sm px-1">

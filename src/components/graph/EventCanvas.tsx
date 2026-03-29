@@ -14,7 +14,6 @@ import '@xyflow/react/dist/style.css';
 
 import { EventNode } from './EventNode';
 import { SwitchNode } from './SwitchNode';
-import SetterNode from './SetterNode';
 import { EdgeWithLabel } from './EdgeWithLabel';
 import { NodeContextMenu } from './NodeContextMenu';
 import type { useEventGraph } from '../../hooks/useEventGraph';
@@ -39,7 +38,6 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
     () => ({
       eventNode: EventNode,
       switchNode: SwitchNode,
-      setterNode: SetterNode,
     }),
     []
   );

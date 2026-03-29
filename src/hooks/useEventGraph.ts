@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Node, Edge, OnNodesChange, OnEdgesChange, OnConnect } from '@xyflow/react';
 import { applyNodeChanges, applyEdgeChanges } from '@xyflow/react';
 import { supabase } from '../lib/supabase';
-import type { GameNode, GameEdge, NodeType, EventNodeData, SwitchNodeData, SetterNodeData, FlowNodeData } from '../types';
+import type { GameNode, GameEdge, NodeType, EventNodeData, SwitchNodeData, FlowNodeData, ProgressionBlock } from '../types';
 
-export type { EventNodeData, SwitchNodeData, SetterNodeData, FlowNodeData };
+export type { EventNodeData, SwitchNodeData, FlowNodeData };
 
 export function useEventGraph(projectId: string) {
   const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([]);
@@ -28,17 +28,7 @@ export function useEventGraph(projectId: string) {
         let data: FlowNodeData;
         let type: string;
 
-        if (n.node_type === 'setter') {
-          data = {
-            label: `${n.node_data?.target_display_id || '?'} → ${n.node_data?.value || '?'}`,
-            displayId: n.display_id,
-            targetDisplayId: (n.node_data?.target_display_id as string) || '',
-            targetValue: (n.node_data?.value as string) || '',
-            nodeType: 'setter',
-            dbId: n.id,
-          };
-          type = 'setterNode';
-        } else if (n.node_type === 'switch') {
+        if (n.node_type === 'switch') {
           data = {
             label: n.name,
             displayId: n.display_id,
@@ -50,8 +40,9 @@ export function useEventGraph(projectId: string) {
           data = {
             label: n.name,
             displayId: n.display_id,
-            summary: n.summary,
-            detail: n.detail,
+            declaration: (n.node_data?.declaration as string) || undefined,
+            progression: (n.node_data?.progression as ProgressionBlock[] | null) ?? null,
+            choices: (n.node_data?.choices as string[] | null) ?? null,
             nodeType: 'event',
             dbId: n.id,
           };
@@ -112,7 +103,7 @@ export function useEventGraph(projectId: string) {
   // ── 다음 display_id 계산 (타입별 별도 카운트) ──
   const getNextDisplayId = useCallback(
     async (nodeType: NodeType): Promise<string> => {
-      const prefixMap: Record<NodeType, string> = { event: 'E', switch: 'S', setter: 'A' };
+      const prefixMap: Record<NodeType, string> = { event: 'E', switch: 'S' };
       const prefix = prefixMap[nodeType];
       const { data } = await supabase
         .from('nodes')
@@ -125,7 +116,7 @@ export function useEventGraph(projectId: string) {
       if (!data || data.length === 0) return `${prefix}001`;
 
       const last = (data[0] as GameNode).display_id;
-      const match = last?.match(/[ESA](\d+)/);
+      const match = last?.match(/[ES](\d+)/);
       const nextNum = match ? parseInt(match[1], 10) + 1 : 1;
       return `${prefix}${String(nextNum).padStart(3, '0')}`;
     },
@@ -157,10 +148,7 @@ export function useEventGraph(projectId: string) {
       let nodeData: FlowNodeData;
       let nodeFlowType: string;
 
-      if (n.node_type === 'setter') {
-        nodeData = { label: '? → ?', displayId: n.display_id, targetDisplayId: '', targetValue: '', nodeType: 'setter', dbId: n.id };
-        nodeFlowType = 'setterNode';
-      } else if (n.node_type === 'switch') {
+      if (n.node_type === 'switch') {
         nodeData = { label: n.name, displayId: n.display_id, nodeType: 'switch', dbId: n.id };
         nodeFlowType = 'switchNode';
       } else {
@@ -194,7 +182,7 @@ export function useEventGraph(projectId: string) {
 
   // ── 노드 데이터 업데이트 ──
   const updateNode = useCallback(
-    async (nodeId: string, updates: { name?: string; summary?: string; detail?: string; node_data?: Record<string, unknown> }) => {
+    async (nodeId: string, updates: { name?: string; node_data?: Record<string, unknown> }) => {
       await supabase
         .from('nodes')
         .update({ ...updates, updated_at: new Date().toISOString() })
@@ -204,15 +192,16 @@ export function useEventGraph(projectId: string) {
         nds.map((n) => {
           if (n.id !== nodeId) return n;
 
-          if (n.data.nodeType === 'setter' && updates.node_data) {
+          if (n.data.nodeType === 'event' && updates.node_data) {
             const nd = updates.node_data;
             return {
               ...n,
               data: {
                 ...n.data,
-                label: `${nd.target_display_id || '?'} → ${nd.value || '?'}`,
-                targetDisplayId: (nd.target_display_id as string) || '',
-                targetValue: (nd.value as string) || '',
+                label: updates.name ?? n.data.label,
+                declaration: nd.declaration as string | undefined,
+                progression: nd.progression as ProgressionBlock[] | null ?? null,
+                choices: nd.choices as string[] | null ?? null,
               },
             };
           }
@@ -222,12 +211,6 @@ export function useEventGraph(projectId: string) {
             data: {
               ...n.data,
               label: updates.name ?? n.data.label,
-              ...(n.data.nodeType === 'event'
-                ? {
-                    summary: updates.summary !== undefined ? updates.summary : (n.data as EventNodeData).summary,
-                    detail: updates.detail !== undefined ? updates.detail : (n.data as EventNodeData).detail,
-                  }
-                : {}),
             },
           };
         })

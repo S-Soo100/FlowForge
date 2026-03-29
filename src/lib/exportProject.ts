@@ -1,5 +1,5 @@
 import type { Node, Edge } from '@xyflow/react';
-import type { ExportedProject, ExportedNode, FlowNodeData, EventNodeData, SetterNodeData } from '../types';
+import type { ExportedProject, ExportedNode, FlowNodeData, EventNodeData } from '../types';
 
 export function exportProject(
   projectName: string,
@@ -32,16 +32,9 @@ export function exportProject(
 
     if (data.nodeType === 'event') {
       const evData = data as EventNodeData;
-      base.summary = evData.summary;
-      base.detail = evData.detail;
-    }
-
-    if (data.nodeType === 'setter') {
-      const setterData = data as SetterNodeData;
-      base.nodeData = {
-        target_display_id: setterData.targetDisplayId,
-        value: setterData.targetValue,
-      };
+      base.declaration = evData.declaration;
+      base.progression = evData.progression ?? null;
+      base.choices = evData.choices ?? null;
     }
 
     return base;

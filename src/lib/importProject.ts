@@ -15,11 +15,18 @@ export async function importProject(
   // 노드 삽입
   for (let i = 0; i < json.nodes.length; i++) {
     const n = json.nodes[i];
-    const prefixMap: Record<string, string> = { event: 'E', switch: 'S', setter: 'A' };
+    const prefixMap: Record<string, string> = { event: 'E', switch: 'S' };
     const prefix = prefixMap[n.nodeType ?? 'event'] ?? 'E';
     const displayId = n.displayId || `${prefix}${String(i + 1).padStart(3, '0')}`;
 
-    const nodeData = n.nodeType === 'setter' ? (n.nodeData ?? {}) : {};
+    const nodeData =
+      n.nodeType === 'event'
+        ? {
+            declaration: n.declaration ?? null,
+            progression: n.progression ?? null,
+            choices: n.choices ?? null,
+          }
+        : {};
 
     const { data, error } = await supabase
       .from('nodes')
@@ -28,8 +35,8 @@ export async function importProject(
         node_type: n.nodeType ?? 'event',
         name: n.name,
         display_id: displayId,
-        summary: n.summary ?? '',
-        detail: n.detail ?? '',
+        summary: '',
+        detail: '',
         position_x: 400,
         position_y: i * 150,
         node_data: nodeData,

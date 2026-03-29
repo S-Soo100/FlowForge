@@ -12,12 +12,12 @@ export function AddEventModal({ onSubmit, onClose }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalName = nodeType === 'setter' ? (name.trim() || '새 세터') : name.trim();
+    const finalName = name.trim();
     if (!finalName) return;
     onSubmit(finalName, nodeType);
   };
 
-  const canSubmit = nodeType === 'setter' ? true : !!name.trim();
+  const canSubmit = !!name.trim();
 
   return (
     <div
@@ -59,49 +59,30 @@ export function AddEventModal({ onSubmit, onClose }: Props) {
               >
                 스위치
               </button>
-              <button
-                type="button"
-                onClick={() => setNodeType('setter')}
-                className={`flex-1 py-2 text-sm rounded-lg border-2 transition ${
-                  nodeType === 'setter'
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-semibold'
-                    : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                }`}
-              >
-                세터
-              </button>
             </div>
           </div>
 
           {/* 이름 */}
-          {nodeType !== 'setter' ? (
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                {nodeType === 'event' ? '이벤트 이름' : '스위치 이름'}
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={nodeType === 'event' ? '예: 촌장 첫 만남' : '예: 선택 분기'}
-                autoFocus
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          ) : (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700">
-              세터가 추가되면 디테일 패널에서 대상 스위치와 값을 설정하세요.
-            </div>
-          )}
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              {nodeType === 'event' ? '이벤트 이름' : '스위치 이름'}
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={nodeType === 'event' ? '예: 촌장 첫 만남' : '예: 선택 분기'}
+              autoFocus
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
           <div className="flex gap-2 pt-2">
             <button
               type="submit"
               disabled={!canSubmit}
               className={`flex-1 py-2 text-white rounded-lg disabled:opacity-50 transition ${
-                nodeType === 'setter'
-                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                  : nodeType === 'switch'
+                nodeType === 'switch'
                   ? 'bg-amber-500 hover:bg-amber-600'
                   : 'bg-blue-600 hover:bg-blue-700'
               }`}
@@ -121,4 +102,3 @@ export function AddEventModal({ onSubmit, onClose }: Props) {
     </div>
   );
 }
-
