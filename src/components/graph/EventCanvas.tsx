@@ -17,6 +17,7 @@ import { SwitchNode } from './SwitchNode';
 import { EdgeWithLabel } from './EdgeWithLabel';
 import { NodeContextMenu } from './NodeContextMenu';
 import { YesNoSelectPopup } from './YesNoSelectPopup';
+import { ChoiceSelectPopup } from './ChoiceSelectPopup';
 import type { useEventGraph } from '../../hooks/useEventGraph';
 
 type GraphHook = ReturnType<typeof useEventGraph>;
@@ -136,6 +137,14 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
         <YesNoSelectPopup
           onSelect={graph.confirmPendingEdge}
           onClose={graph.cancelPendingEdge}
+        />
+      )}
+
+      {graph.pendingChoiceEdge && (
+        <ChoiceSelectPopup
+          choices={graph.pendingChoiceEdge.choices}
+          onSelect={graph.confirmPendingChoiceEdge}
+          onClose={graph.cancelPendingChoiceEdge}
         />
       )}
     </div>

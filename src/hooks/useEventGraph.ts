@@ -11,11 +11,18 @@ export interface PendingEdge {
   sourceId: string;
 }
 
+export interface PendingChoiceEdge {
+  edgeId: string;
+  sourceId: string;
+  choices: string[];
+}
+
 export function useEventGraph(projectId: string) {
   const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingEdge, setPendingEdge] = useState<PendingEdge | null>(null);
+  const [pendingChoiceEdge, setPendingChoiceEdge] = useState<PendingChoiceEdge | null>(null);
 
   // ── DB에서 로드 ──
   const load = useCallback(async () => {
@@ -315,21 +322,10 @@ export function useEventGraph(projectId: string) {
         return;
       }
 
-      // 이벤트 노드 → 선택지 자동 할당
+      // 이벤트 노드에서 선택지가 있으면 → 선택 팝업 대기
       const isFromEvent = sourceNode?.type === 'eventNode';
-      let autoLabel = '';
-
-      if (isFromEvent) {
-        const eventData = sourceNode?.data as EventNodeData | undefined;
-        const choices = eventData?.choices;
-        if (choices && choices.length > 0) {
-          const outEdges = edges.filter((e) => e.source === params.source);
-          const nextIdx = outEdges.length;
-          if (nextIdx < choices.length) {
-            autoLabel = choices[nextIdx];
-          }
-        }
-      }
+      const eventData = isFromEvent ? (sourceNode?.data as EventNodeData | undefined) : undefined;
+      const hasChoices = isFromEvent && eventData?.choices && eventData.choices.length > 0;
 
       const { data, error } = await supabase
         .from('edges')
@@ -337,7 +333,7 @@ export function useEventGraph(projectId: string) {
           project_id: projectId,
           source_node_id: params.source,
           target_node_id: params.target,
-          label: autoLabel,
+          label: '',
           source_handle: params.sourceHandle || null,
           sort_order: 0,
         })
@@ -354,11 +350,19 @@ export function useEventGraph(projectId: string) {
           source: edge.source_node_id,
           target: edge.target_node_id,
           sourceHandle: edge.source_handle || undefined,
-          label: autoLabel || undefined,
+          label: undefined,
           type: 'edgeWithLabel',
           data: { dbId: edge.id },
         },
       ]);
+
+      if (hasChoices) {
+        setPendingChoiceEdge({
+          edgeId: edge.id,
+          sourceId: params.source,
+          choices: eventData!.choices!,
+        });
+      }
     },
     [projectId, edges, nodes]
   );
@@ -384,6 +388,26 @@ export function useEventGraph(projectId: string) {
     setEdges((eds) => eds.filter((e) => e.id !== pendingEdge.edgeId));
     setPendingEdge(null);
   }, [pendingEdge]);
+
+  // ── pendingChoiceEdge 선택지 확정 ──
+  const confirmPendingChoiceEdge = useCallback(
+    async (choice: string | null) => {
+      if (!pendingChoiceEdge) return;
+      const { edgeId } = pendingChoiceEdge;
+      const label = choice || '';
+      await supabase.from('edges').update({ label }).eq('id', edgeId);
+      setEdges((eds) =>
+        eds.map((e) => (e.id === edgeId ? { ...e, label: label || undefined } : e))
+      );
+      setPendingChoiceEdge(null);
+    },
+    [pendingChoiceEdge]
+  );
+
+  // ── pendingChoiceEdge 취소 (선택 안 함으로 확정) ──
+  const cancelPendingChoiceEdge = useCallback(async () => {
+    setPendingChoiceEdge(null);
+  }, []);
 
   // ── 선택지 → 나가는 엣지 라벨 자동 동기화 ──
   // 이벤트 노드 저장 시 choices 배열 → 나가는 엣지 라벨 순서대로 업데이트
@@ -455,6 +479,9 @@ export function useEventGraph(projectId: string) {
     pendingEdge,
     confirmPendingEdge,
     cancelPendingEdge,
+    pendingChoiceEdge,
+    confirmPendingChoiceEdge,
+    cancelPendingChoiceEdge,
     syncChoicesToEdges,
   };
 }
