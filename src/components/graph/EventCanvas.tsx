@@ -13,10 +13,8 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { EventNode } from './EventNode';
-import { SwitchNode } from './SwitchNode';
 import { EdgeWithLabel } from './EdgeWithLabel';
 import { NodeContextMenu } from './NodeContextMenu';
-import { YesNoSelectPopup } from './YesNoSelectPopup';
 import { ChoiceSelectPopup } from './ChoiceSelectPopup';
 import type { useEventGraph } from '../../hooks/useEventGraph';
 
@@ -39,7 +37,6 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
   const nodeTypes: NodeTypes = useMemo(
     () => ({
       eventNode: EventNode,
-      switchNode: SwitchNode,
     }),
     []
   );
@@ -130,13 +127,6 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
           onEdit={onNodeDoubleClick}
           onDelete={graph.deleteNode}
           onClose={() => setContextMenu(null)}
-        />
-      )}
-
-      {graph.pendingEdge && (
-        <YesNoSelectPopup
-          onSelect={graph.confirmPendingEdge}
-          onClose={graph.cancelPendingEdge}
         />
       )}
 

@@ -21,7 +21,7 @@ export function validateGraph(nodes: Node[], edges: Edge[]): ValidationWarning[]
     const hasIncoming = targetSet.has(node.id);
     const hasOutgoing = sourceSet.has(node.id);
 
-    const typeLabel = data.nodeType === 'switch' ? '스위치' : '이벤트';
+    const typeLabel = '이벤트';
 
     // 고아 노드: 연결이 하나도 없음
     if (!hasIncoming && !hasOutgoing && nodes.length > 1) {

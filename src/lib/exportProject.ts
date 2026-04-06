@@ -1,23 +1,28 @@
 import type { Node, Edge } from '@xyflow/react';
-import type { ExportedProject, ExportedNode, FlowNodeData, EventNodeData } from '../types';
+import type { ExportedProject, ExportedNode, ExportedVariable, FlowNodeData, EventNodeData, ProjectVariable } from '../types';
 
 export function exportProject(
   projectName: string,
   projectDescription: string | undefined,
   nodes: Node<FlowNodeData>[],
-  edges: Edge[]
+  edges: Edge[],
+  variables?: ProjectVariable[],
 ): ExportedProject {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
 
   const exportedNodes: ExportedNode[] = nodes.map((node) => {
-    const data = node.data as unknown as FlowNodeData;
+    const data = node.data as unknown as EventNodeData;
     const outEdges = edges.filter((e) => e.source === node.id);
 
-    const base: ExportedNode = {
+    return {
       id: node.id,
       displayId: data.displayId,
-      nodeType: data.nodeType,
+      nodeType: 'event' as const,
       name: data.label,
+      declaration: data.declaration,
+      conditions: data.conditions ?? null,
+      progression: data.progression ?? null,
+      choices: data.choices ?? null,
       next: outEdges.map((e) => {
         const targetNode = nodeMap.get(e.target);
         const targetData = targetNode?.data as unknown as FlowNodeData | undefined;
@@ -29,16 +34,19 @@ export function exportProject(
         };
       }),
     };
-
-    if (data.nodeType === 'event') {
-      const evData = data as EventNodeData;
-      base.declaration = evData.declaration;
-      base.progression = evData.progression ?? null;
-      base.choices = evData.choices ?? null;
-    }
-
-    return base;
   });
+
+  // 변수/배경/캐릭터
+  const exportedVariables: ExportedVariable[] | undefined =
+    variables && variables.length > 0
+      ? variables.map((v) => ({
+          category: v.category,
+          key: v.key,
+          value_type: v.value_type,
+          default_value: v.default_value,
+          file_name: v.file_name,
+        }))
+      : undefined;
 
   return {
     project: {
@@ -47,6 +55,7 @@ export function exportProject(
       exportedAt: new Date().toISOString(),
     },
     nodes: exportedNodes,
+    variables: exportedVariables,
   };
 }
 

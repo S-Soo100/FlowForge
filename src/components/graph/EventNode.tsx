@@ -7,6 +7,7 @@ function EventNodeComponent({ data, selected }: NodeProps) {
 
   const progressionCount = nodeData.progression?.length ?? 0;
   const choicesCount = nodeData.choices?.items?.length ?? 0;
+  const conditionsCount = nodeData.conditions?.items?.length ?? 0;
 
   return (
     <div className={`bg-white border-2 rounded-lg shadow-sm min-w-[180px] max-w-[240px] hover:shadow-md transition-all ${selected ? 'border-blue-400 ring-2 ring-blue-300 shadow-lg shadow-blue-100' : 'border-gray-300'}`}>
@@ -32,8 +33,13 @@ function EventNodeComponent({ data, selected }: NodeProps) {
       </div>
 
       {/* 인디케이터 */}
-      {(progressionCount > 0 || choicesCount > 0) && (
+      {(progressionCount > 0 || choicesCount > 0 || conditionsCount > 0) && (
         <div className="px-3 pb-2 pt-1 border-t border-gray-100 flex gap-2">
+          {conditionsCount > 0 && (
+            <span className="text-[10px] text-orange-500 font-medium">
+              {conditionsCount}조건
+            </span>
+          )}
           {progressionCount > 0 && (
             <span className="text-[10px] text-blue-500 font-medium">
               {progressionCount}블럭

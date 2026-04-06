@@ -17,7 +17,7 @@ export function ProjectListPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <img src="/forgi-writing-t.png" alt="Loading" className="h-40 opacity-70 animate-pulse" />
+        <img src="/forgi-thinking-t.png" alt="Loading" className="h-40 opacity-70 animate-pulse" />
         <p className="text-gray-400">로딩중...</p>
       </div>
     );

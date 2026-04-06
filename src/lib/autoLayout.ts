@@ -1,44 +1,51 @@
-import Dagre from '@dagrejs/dagre';
+import ELK, { type ElkNode } from 'elkjs/lib/elk.bundled.js';
 import type { Node, Edge } from '@xyflow/react';
-import type { FlowNodeData } from '../types';
 
-export function getAutoLayout(
+const elk = new ELK();
+
+const NODE_WIDTH = 200;
+const NODE_HEIGHT = 100;
+
+export async function getAutoLayout(
   nodes: Node[],
   edges: Edge[],
-  direction: 'TB' | 'LR' = 'TB'
-): Node[] {
-  const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+): Promise<Node[]> {
+  const elkGraph: ElkNode = {
+    id: 'root',
+    layoutOptions: {
+      'elk.algorithm': 'layered',
+      'elk.direction': 'DOWN',
+      'elk.spacing.nodeNode': '100',
+      'elk.layered.spacing.nodeNodeBetweenLayers': '150',
+      'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+      'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+    },
+    // 입력 순서 고정 → 결정론적 레이아웃
+    children: [...nodes]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((node) => ({
+        id: node.id,
+        width: NODE_WIDTH,
+        height: NODE_HEIGHT,
+      })),
+    edges: [...edges]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((edge) => ({
+        id: edge.id,
+        sources: [edge.source],
+        targets: [edge.target],
+      })),
+  };
 
-  g.setGraph({
-    rankdir: direction,
-    nodesep: 80,
-    ranksep: 120,
-    marginx: 40,
-    marginy: 40,
-  });
+  const laid = await elk.layout(elkGraph);
 
-  for (const node of nodes) {
-    const data = node.data as unknown as FlowNodeData;
-    // 스위치: 120x120, 이벤트: 200x100
-    const width = data?.nodeType === 'switch' ? 120 : 200;
-    const height = data?.nodeType === 'switch' ? 120 : 100;
-    g.setNode(node.id, { width, height });
+  const posMap = new Map<string, { x: number; y: number }>();
+  for (const child of laid.children ?? []) {
+    posMap.set(child.id, { x: child.x ?? 0, y: child.y ?? 0 });
   }
-
-  for (const edge of edges) {
-    g.setEdge(edge.source, edge.target);
-  }
-
-  Dagre.layout(g);
 
   return nodes.map((node) => {
-    const data = node.data as unknown as FlowNodeData;
-    const pos = g.node(node.id);
-    const halfW = data?.nodeType === 'switch' ? 60 : 100;
-    const halfH = data?.nodeType === 'switch' ? 60 : 50;
-    return {
-      ...node,
-      position: { x: pos.x - halfW, y: pos.y - halfH },
-    };
+    const pos = posMap.get(node.id) ?? { x: 0, y: 0 };
+    return { ...node, position: pos };
   });
 }

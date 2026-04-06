@@ -7,6 +7,7 @@ interface Props {
   onAutoLayout: () => void;
   onValidate: () => void;
   onSettings: () => void;
+  onVariables: () => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -17,7 +18,7 @@ interface Props {
 }
 
 export function Toolbar({
-  onAddEvent, onExport, onImport, onAutoLayout, onValidate, onSettings,
+  onAddEvent, onExport, onImport, onAutoLayout, onValidate, onSettings, onVariables,
   onUndo, onRedo, canUndo, canRedo, isReadOnly,
   projectName, onBack,
 }: Props) {
@@ -60,7 +61,7 @@ export function Toolbar({
             onClick={onAddEvent}
             className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
           >
-            + 노드
+            + 이벤트
           </button>
         )}
         <button
@@ -76,6 +77,13 @@ export function Toolbar({
           title="검증"
         >
           ✅ 검증
+        </button>
+        <button
+          onClick={onVariables}
+          className="px-3 py-1.5 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition"
+          title="프로젝트 데이터 관리"
+        >
+          📦 데이터
         </button>
 
         <div className="w-px h-6 bg-gray-200" />

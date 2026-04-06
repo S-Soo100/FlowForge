@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Node, Edge, OnNodesChange, OnEdgesChange, OnConnect } from '@xyflow/react';
 import { applyNodeChanges, applyEdgeChanges } from '@xyflow/react';
 import { supabase } from '../lib/supabase';
-import type { GameNode, GameEdge, NodeType, EventNodeData, SwitchNodeData, FlowNodeData, ProgressionBlock, ChoicesData } from '../types';
+import type { GameNode, GameEdge, NodeType, EventNodeData, FlowNodeData, ProgressionBlock, ChoicesData, ConditionGroup } from '../types';
 
 // 하위호환 정규화: string[] (레거시) 또는 ChoicesData 모두 처리
 function normalizeChoices(raw: unknown): ChoicesData | null {
@@ -17,12 +17,7 @@ function normalizeChoices(raw: unknown): ChoicesData | null {
   return null;
 }
 
-export type { EventNodeData, SwitchNodeData, FlowNodeData };
-
-export interface PendingEdge {
-  edgeId: string;
-  sourceId: string;
-}
+export type { EventNodeData, FlowNodeData };
 
 export interface PendingChoiceEdge {
   edgeId: string;
@@ -34,7 +29,6 @@ export function useEventGraph(projectId: string) {
   const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pendingEdge, setPendingEdge] = useState<PendingEdge | null>(null);
   const [pendingChoiceEdge, setPendingChoiceEdge] = useState<PendingChoiceEdge | null>(null);
 
   // ── DB에서 로드 ──
@@ -49,54 +43,37 @@ export function useEventGraph(projectId: string) {
     const dbNodes: GameNode[] = nodesRes.data ?? [];
     const dbEdges: GameEdge[] = edgesRes.data ?? [];
 
-    setNodes(
-      dbNodes.map((n) => {
-        let data: FlowNodeData;
-        let type: string;
+    const flowNodes = dbNodes.map((n) => {
+      const data: FlowNodeData = {
+        label: n.name,
+        displayId: n.display_id,
+        declaration: (n.node_data?.declaration as string) || undefined,
+        conditions: (n.node_data?.conditions as ConditionGroup | null) ?? null,
+        progression: (n.node_data?.progression as ProgressionBlock[] | null) ?? null,
+        choices: normalizeChoices(n.node_data?.choices),
+        nodeType: 'event',
+        dbId: n.id,
+      };
 
-        if (n.node_type === 'switch') {
-          data = {
-            label: n.name,
-            displayId: n.display_id,
-            nodeType: 'switch',
-            dbId: n.id,
-          };
-          type = 'switchNode';
-        } else {
-          data = {
-            label: n.name,
-            displayId: n.display_id,
-            declaration: (n.node_data?.declaration as string) || undefined,
-            progression: (n.node_data?.progression as ProgressionBlock[] | null) ?? null,
-            choices: normalizeChoices(n.node_data?.choices),
-            nodeType: 'event',
-            dbId: n.id,
-          };
-          type = 'eventNode';
-        }
+      return {
+        id: n.id,
+        type: 'eventNode',
+        position: { x: n.position_x, y: n.position_y },
+        data,
+      };
+    });
 
-        return {
-          id: n.id,
-          type,
-          position: { x: n.position_x, y: n.position_y },
-          data,
-        };
-      })
-    );
+    const flowEdges: Edge[] = dbEdges.map((e) => ({
+      id: e.id,
+      source: e.source_node_id,
+      target: e.target_node_id,
+      label: e.label || undefined,
+      type: 'edgeWithLabel',
+      data: { dbId: e.id },
+    }));
 
-    setEdges(
-      dbEdges.map((e) => ({
-        id: e.id,
-        source: e.source_node_id,
-        target: e.target_node_id,
-        sourceHandle: e.source_handle || undefined,
-        targetHandle: undefined,
-        label: e.label || undefined,
-        type: 'edgeWithLabel',
-        data: { dbId: e.id },
-      }))
-    );
-
+    setNodes(flowNodes);
+    setEdges(flowEdges);
     setLoading(false);
   }, [projectId]);
 
@@ -126,25 +103,23 @@ export function useEventGraph(projectId: string) {
     []
   );
 
-  // ── 다음 display_id 계산 (타입별 별도 카운트) ──
+  // ── 다음 display_id 계산 ──
   const getNextDisplayId = useCallback(
-    async (nodeType: NodeType): Promise<string> => {
-      const prefixMap: Record<NodeType, string> = { event: 'E', switch: 'S' };
-      const prefix = prefixMap[nodeType];
+    async (_nodeType: NodeType): Promise<string> => {
       const { data } = await supabase
         .from('nodes')
         .select('display_id')
         .eq('project_id', projectId)
-        .eq('node_type', nodeType)
+        .eq('node_type', 'event')
         .order('display_id', { ascending: false })
         .limit(1);
 
-      if (!data || data.length === 0) return `${prefix}001`;
+      if (!data || data.length === 0) return 'E001';
 
       const last = (data[0] as GameNode).display_id;
       const match = last?.match(/[ES](\d+)/);
       const nextNum = match ? parseInt(match[1], 10) + 1 : 1;
-      return `${prefix}${String(nextNum).padStart(3, '0')}`;
+      return `E${String(nextNum).padStart(3, '0')}`;
     },
     [projectId]
   );
@@ -158,7 +133,7 @@ export function useEventGraph(projectId: string) {
         .from('nodes')
         .insert({
           project_id: projectId,
-          node_type: nodeType,
+          node_type: 'event',
           name,
           display_id: displayId,
           position_x: x,
@@ -171,22 +146,18 @@ export function useEventGraph(projectId: string) {
       if (error || !data) throw error;
 
       const n = data as GameNode;
-      let nodeData: FlowNodeData;
-      let nodeFlowType: string;
-
-      if (n.node_type === 'switch') {
-        nodeData = { label: n.name, displayId: n.display_id, nodeType: 'switch', dbId: n.id };
-        nodeFlowType = 'switchNode';
-      } else {
-        nodeData = { label: n.name, displayId: n.display_id, nodeType: 'event', dbId: n.id };
-        nodeFlowType = 'eventNode';
-      }
+      const nodeData: FlowNodeData = {
+        label: n.name,
+        displayId: n.display_id,
+        nodeType: 'event',
+        dbId: n.id,
+      };
 
       setNodes((nds) => [
         ...nds,
         {
           id: n.id,
-          type: nodeFlowType,
+          type: 'eventNode',
           position: { x: n.position_x, y: n.position_y },
           data: nodeData,
         },
@@ -218,7 +189,7 @@ export function useEventGraph(projectId: string) {
         nds.map((n) => {
           if (n.id !== nodeId) return n;
 
-          if (n.data.nodeType === 'event' && updates.node_data) {
+          if (updates.node_data) {
             const nd = updates.node_data;
             return {
               ...n,
@@ -226,6 +197,7 @@ export function useEventGraph(projectId: string) {
                 ...n.data,
                 label: updates.name ?? n.data.label,
                 declaration: nd.declaration as string | undefined,
+                conditions: (nd.conditions as ConditionGroup | null) ?? null,
                 progression: nd.progression as ProgressionBlock[] | null ?? null,
                 choices: normalizeChoices(nd.choices),
               },
@@ -245,7 +217,7 @@ export function useEventGraph(projectId: string) {
     []
   );
 
-  // ── 엣지 연결 (중복 방지 + 스위치 Yes/No 로직) ──
+  // ── 엣지 연결 (중복 방지 + 선택지 팝업) ──
   const onConnect: OnConnect = useCallback(
     async (params) => {
       if (!params.source || !params.target) return;
@@ -255,91 +227,6 @@ export function useEventGraph(projectId: string) {
       );
       if (duplicate) return;
 
-      // 소스 노드가 스위치인지 확인
-      const sourceNode = nodes.find((n) => n.id === params.source);
-      const isFromSwitch = sourceNode?.type === 'switchNode';
-
-      if (isFromSwitch) {
-        // 스위치에서 나가는 기존 엣지
-        const outEdges = edges.filter((e) => e.source === params.source);
-
-        // 이미 2개 이상이면 차단
-        if (outEdges.length >= 2) return;
-
-        // 1개 이미 있으면 반대 라벨 자동 결정
-        if (outEdges.length === 1) {
-          const existingLabel = outEdges[0].label as string | undefined;
-          const autoLabel = existingLabel === 'yes' ? 'no' : 'yes';
-
-          const { data, error } = await supabase
-            .from('edges')
-            .insert({
-              project_id: projectId,
-              source_node_id: params.source,
-              target_node_id: params.target,
-              label: autoLabel,
-              source_handle: params.sourceHandle || 'source-bottom',
-              sort_order: 0,
-            })
-            .select()
-            .single();
-
-          if (error || !data) return;
-
-          const edge = data as GameEdge;
-          setEdges((eds) => [
-            ...eds,
-            {
-              id: edge.id,
-              source: edge.source_node_id,
-              target: edge.target_node_id,
-              sourceHandle: edge.source_handle || 'source-bottom',
-              label: autoLabel,
-              type: 'edgeWithLabel',
-              data: { dbId: edge.id },
-            },
-          ]);
-          return;
-        }
-
-        // 0개 — 먼저 DB에 라벨 없이 저장하고 pendingEdge로 팝업 대기
-        const { data, error } = await supabase
-          .from('edges')
-          .insert({
-            project_id: projectId,
-            source_node_id: params.source,
-            target_node_id: params.target,
-            label: '',
-            source_handle: params.sourceHandle || 'source-bottom',
-            sort_order: 0,
-          })
-          .select()
-          .single();
-
-        if (error || !data) return;
-
-        const edge = data as GameEdge;
-        setEdges((eds) => [
-          ...eds,
-          {
-            id: edge.id,
-            source: edge.source_node_id,
-            target: edge.target_node_id,
-            sourceHandle: edge.source_handle || 'source-bottom',
-            label: undefined,
-            type: 'edgeWithLabel',
-            data: { dbId: edge.id },
-          },
-        ]);
-        setPendingEdge({ edgeId: edge.id, sourceId: params.source });
-        return;
-      }
-
-      // 이벤트 노드에서 선택지가 있으면 → 선택 팝업 대기
-      const isFromEvent = sourceNode?.type === 'eventNode';
-      const eventData = isFromEvent ? (sourceNode?.data as EventNodeData | undefined) : undefined;
-      const hasChoices = isFromEvent && eventData?.choices && eventData.choices.items.length > 0;
-
       const { data, error } = await supabase
         .from('edges')
         .insert({
@@ -347,7 +234,6 @@ export function useEventGraph(projectId: string) {
           source_node_id: params.source,
           target_node_id: params.target,
           label: '',
-          source_handle: params.sourceHandle || null,
           sort_order: 0,
         })
         .select()
@@ -362,12 +248,16 @@ export function useEventGraph(projectId: string) {
           id: edge.id,
           source: edge.source_node_id,
           target: edge.target_node_id,
-          sourceHandle: edge.source_handle || undefined,
           label: undefined,
           type: 'edgeWithLabel',
           data: { dbId: edge.id },
         },
       ]);
+
+      // 소스 노드에 선택지가 있으면 → 선택 팝업 대기
+      const sourceNode = nodes.find((n) => n.id === params.source);
+      const eventData = sourceNode?.data as EventNodeData | undefined;
+      const hasChoices = eventData?.choices && eventData.choices.items.length > 0;
 
       if (hasChoices) {
         setPendingChoiceEdge({
@@ -379,28 +269,6 @@ export function useEventGraph(projectId: string) {
     },
     [projectId, edges, nodes]
   );
-
-  // ── pendingEdge Yes/No 확정 ──
-  const confirmPendingEdge = useCallback(
-    async (choice: 'yes' | 'no') => {
-      if (!pendingEdge) return;
-      const { edgeId } = pendingEdge;
-      await supabase.from('edges').update({ label: choice }).eq('id', edgeId);
-      setEdges((eds) =>
-        eds.map((e) => (e.id === edgeId ? { ...e, label: choice } : e))
-      );
-      setPendingEdge(null);
-    },
-    [pendingEdge]
-  );
-
-  // ── pendingEdge 취소 (엣지 삭제) ──
-  const cancelPendingEdge = useCallback(async () => {
-    if (!pendingEdge) return;
-    await supabase.from('edges').delete().eq('id', pendingEdge.edgeId);
-    setEdges((eds) => eds.filter((e) => e.id !== pendingEdge.edgeId));
-    setPendingEdge(null);
-  }, [pendingEdge]);
 
   // ── pendingChoiceEdge 선택지 확정 ──
   const confirmPendingChoiceEdge = useCallback(
@@ -423,10 +291,8 @@ export function useEventGraph(projectId: string) {
   }, []);
 
   // ── 선택지 → 나가는 엣지 라벨 자동 동기화 ──
-  // 이벤트 노드 저장 시 choices 배열 → 나가는 엣지 라벨 순서대로 업데이트
   const syncChoicesToEdges = useCallback(
     async (sourceNodeId: string, choices: string[] | null) => {
-      // 나가는 엣지 목록 (sort_order 순)
       const outEdges = edges
         .filter((e) => e.source === sourceNodeId)
         .sort((a, b) => {
@@ -475,6 +341,31 @@ export function useEventGraph(projectId: string) {
     setEdges((eds) => eds.filter((e) => e.id !== edgeId));
   }, []);
 
+  // ── 자동 정렬 결과 일괄 적용 (노드 위치만) ──
+  const applyAutoLayout = useCallback(
+    async (layoutNodes: Node<FlowNodeData>[]) => {
+      // 노드 위치 state 업데이트
+      const posMap = new Map(layoutNodes.map((n) => [n.id, n.position]));
+      setNodes((nds) =>
+        nds.map((n) => {
+          const pos = posMap.get(n.id);
+          return pos ? { ...n, position: pos } : n;
+        })
+      );
+
+      // DB에 노드 위치 저장
+      await Promise.all(
+        layoutNodes.map((n) =>
+          supabase
+            .from('nodes')
+            .update({ position_x: n.position.x, position_y: n.position.y, updated_at: new Date().toISOString() })
+            .eq('id', n.id)
+        )
+      );
+    },
+    []
+  );
+
   return {
     nodes,
     edges,
@@ -489,12 +380,10 @@ export function useEventGraph(projectId: string) {
     updateEdgeLabel,
     deleteEdge,
     reload: load,
-    pendingEdge,
-    confirmPendingEdge,
-    cancelPendingEdge,
     pendingChoiceEdge,
     confirmPendingChoiceEdge,
     cancelPendingChoiceEdge,
     syncChoicesToEdges,
+    applyAutoLayout,
   };
 }

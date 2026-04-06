@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { EventNodeData, ProgressionBlock, ChoicesData } from '../../types';
+import type { EventNodeData, ProgressionBlock, ChoicesData, ConditionItem, ConditionGroup } from '../../types';
 
 interface Props {
   nodeId: string;
   data: EventNodeData;
+  variableKeys: string[];
   onSave: (
     nodeId: string,
     updates: { name?: string; node_data?: Record<string, unknown> }
@@ -11,6 +12,144 @@ interface Props {
   onSyncChoices?: (nodeId: string, choices: string[] | null) => Promise<void>;
   onDelete: (nodeId: string) => Promise<void>;
   onClose: () => void;
+}
+
+// ── 조건 빌더 ──
+interface ConditionBuilderProps {
+  conditions: ConditionGroup | null;
+  onChange: (conditions: ConditionGroup | null) => void;
+  variableKeys: string[];
+}
+
+const COMPARATORS: ConditionItem['comparator'][] = ['==', '!=', '>', '<', '>=', '<='];
+
+function ConditionBuilder({ conditions, onChange, variableKeys }: ConditionBuilderProps) {
+  const items = conditions?.items ?? [];
+  const operator = conditions?.operator ?? 'and';
+
+  const updateOperator = (op: 'and' | 'or') => {
+    if (!conditions) return;
+    onChange({ ...conditions, operator: op });
+  };
+
+  const addItem = () => {
+    const newItem: ConditionItem = { variableKey: '', comparator: '==', value: '' };
+    if (!conditions) {
+      onChange({ operator: 'and', items: [newItem] });
+    } else {
+      onChange({ ...conditions, items: [...conditions.items, newItem] });
+    }
+  };
+
+  const updateItem = (index: number, updated: ConditionItem) => {
+    if (!conditions) return;
+    const newItems = conditions.items.map((it, i) => (i === index ? updated : it));
+    onChange({ ...conditions, items: newItems });
+  };
+
+  const removeItem = (index: number) => {
+    if (!conditions) return;
+    const newItems = conditions.items.filter((_, i) => i !== index);
+    if (newItems.length === 0) {
+      onChange(null);
+    } else {
+      onChange({ ...conditions, items: newItems });
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      {/* 논리 연산자 — 조건 2개 이상일 때만 표시 */}
+      {items.length >= 2 && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">전체 논리:</span>
+          <select
+            value={operator}
+            onChange={(e) => updateOperator(e.target.value as 'and' | 'or')}
+            className="text-xs border border-gray-200 rounded px-1.5 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+          >
+            <option value="and">AND (모두 만족)</option>
+            <option value="or">OR (하나라도 만족)</option>
+          </select>
+        </div>
+      )}
+
+      {/* 조건 행 목록 */}
+      {items.length === 0 ? (
+        <p className="text-xs text-gray-400 italic">조건이 없으면 항상 발생</p>
+      ) : (
+        <div className="space-y-1.5">
+          {items.map((item, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1.5"
+            >
+              {/* 변수 드롭다운 */}
+              <select
+                value={item.variableKey}
+                onChange={(e) => updateItem(i, { ...item, variableKey: e.target.value })}
+                className="text-xs border border-gray-200 rounded px-1.5 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-0 flex-1"
+              >
+                {item.variableKey === '' && (
+                  <option value="" disabled>
+                    {variableKeys.length === 0 ? '변수 없음' : '변수 선택'}
+                  </option>
+                )}
+                {variableKeys.map((key) => (
+                  <option key={key} value={key}>
+                    {key}
+                  </option>
+                ))}
+              </select>
+
+              {/* 비교 연산자 */}
+              <select
+                value={item.comparator}
+                onChange={(e) =>
+                  updateItem(i, { ...item, comparator: e.target.value as ConditionItem['comparator'] })
+                }
+                className="text-xs border border-gray-200 rounded px-1.5 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 flex-shrink-0"
+              >
+                {COMPARATORS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+
+              {/* 값 입력 */}
+              <input
+                type="text"
+                value={item.value}
+                onChange={(e) => updateItem(i, { ...item, value: e.target.value })}
+                placeholder="값"
+                className="text-xs border border-gray-200 rounded px-1.5 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-0 flex-1"
+              />
+
+              {/* 삭제 */}
+              <button
+                onClick={() => removeItem(i)}
+                className="text-gray-300 hover:text-red-400 text-sm flex-shrink-0 leading-none"
+                title="조건 삭제"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 조건 추가 버튼 */}
+      <button
+        onClick={addItem}
+        disabled={variableKeys.length === 0}
+        className="w-full py-1.5 border border-dashed border-gray-300 rounded text-xs text-gray-400 hover:text-blue-500 hover:border-blue-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        title={variableKeys.length === 0 ? '먼저 프로젝트 변수를 추가하세요' : undefined}
+      >
+        + 조건 추가
+      </button>
+    </div>
+  );
 }
 
 // ── 블럭 타입 메타 ──
@@ -352,6 +491,7 @@ function AddBlockButton({ hasChoices, onAddBlock, onAddChoices }: AddBlockButton
 export function EventDetailPanel({
   nodeId,
   data,
+  variableKeys,
   onSave,
   onSyncChoices,
   onDelete,
@@ -359,6 +499,7 @@ export function EventDetailPanel({
 }: Props) {
   const [name, setName] = useState(data.label);
   const [declaration, setDeclaration] = useState(data.declaration ?? '');
+  const [conditions, setConditions] = useState<ConditionGroup | null>(data.conditions ?? null);
   const [blocks, setBlocks] = useState<ProgressionBlock[]>(
     data.progression ?? []
   );
@@ -377,6 +518,7 @@ export function EventDetailPanel({
   useEffect(() => {
     setName(data.label);
     setDeclaration(data.declaration ?? '');
+    setConditions(data.conditions ?? null);
     setBlocks(data.progression ?? []);
     setChoices(data.choices?.items ?? []);
     setChoicesLabel(data.choices?.label ?? '');
@@ -444,6 +586,7 @@ export function EventDetailPanel({
       name,
       node_data: {
         declaration: declaration.trim() || undefined,
+        conditions: conditions ?? null,
         progression,
         choices: choicesData,
       },
@@ -494,17 +637,15 @@ export function EventDetailPanel({
           />
         </div>
 
-        {/* 이벤트 발생 선언 */}
+        {/* 발생 조건 */}
         <div className="space-y-1">
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            이벤트 발생 선언
+            발생 조건
           </label>
-          <input
-            type="text"
-            value={declaration}
-            onChange={(e) => setDeclaration(e.target.value)}
-            placeholder="예: 촌장이 주인공에게 다가온다"
-            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+          <ConditionBuilder
+            conditions={conditions}
+            onChange={setConditions}
+            variableKeys={variableKeys}
           />
         </div>
 
