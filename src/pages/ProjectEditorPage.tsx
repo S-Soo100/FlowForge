@@ -6,18 +6,19 @@ import { useAuth } from '../hooks/useAuth';
 import { useEventGraph } from '../hooks/useEventGraph';
 import { useHistory } from '../hooks/useHistory';
 import { useProjectRole } from '../hooks/useProjectRole';
+import { useProjectVariables } from '../hooks/useProjectVariables';
 import { EventCanvas } from '../components/graph/EventCanvas';
 import { EventDetailPanel } from '../components/detail/EventDetailPanel';
-import { SwitchDetailPanel } from '../components/detail/SwitchDetailPanel';
 import { ValidationPanel } from '../components/graph/ValidationPanel';
 import { ProjectSettingsPanel } from '../components/project/ProjectSettingsPanel';
+import { ProjectVariablesModal } from '../components/project/ProjectVariablesModal';
 import { Toolbar } from '../components/graph/Toolbar';
 import { AddEventModal } from '../components/graph/AddEventModal';
 import { exportProject, downloadJson } from '../lib/exportProject';
 import { importProject } from '../lib/importProject';
 import { getAutoLayout } from '../lib/autoLayout';
 import { validateGraph, type ValidationWarning } from '../lib/validate';
-import type { Project, NodeType, ExportedProject, EventNodeData, SwitchNodeData, FlowNodeData } from '../types';
+import type { Project, ExportedProject, EventNodeData } from '../types';
 
 function EditorContent() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -28,12 +29,14 @@ function EditorContent() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showVariables, setShowVariables] = useState(false);
   const [validationWarnings, setValidationWarnings] = useState<ValidationWarning[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const graph = useEventGraph(projectId!);
   const history = useHistory();
   const { canEdit, loading: roleLoading } = useProjectRole(projectId!, user?.id);
+  const projectVariables = useProjectVariables(projectId!);
 
   useEffect(() => {
     supabase
@@ -45,25 +48,25 @@ function EditorContent() {
   }, [projectId]);
 
   // ── 노드 추가 ──
-  const handleAddNode = useCallback(async (name: string, nodeType: NodeType) => {
+  const handleAddNode = useCallback(async (name: string) => {
+    console.log('[DEBUG] handleAddNode called', { name, showAddModal });
     history.pushSnapshot(graph.nodes, graph.edges);
-    // 현재 뷰포트 중앙에 노드 추가 (약간 랜덤 오프셋)
     const centerPos = screenToFlowPosition({
       x: window.innerWidth / 2,
       y: window.innerHeight / 2,
     });
     const x = centerPos.x - 100 + Math.random() * 40 - 20;
     const y = centerPos.y - 50 + Math.random() * 40 - 20;
-    await graph.addNode(name, nodeType, x, y);
+    await graph.addNode(name, 'event', x, y);
     setShowAddModal(false);
   }, [graph, history, screenToFlowPosition]);
 
   // ── Export ──
   const handleExport = useCallback(() => {
     if (!project) return;
-    const data = exportProject(project.name, project.description, graph.nodes, graph.edges);
+    const data = exportProject(project.name, project.description, graph.nodes, graph.edges, projectVariables.variables);
     downloadJson(data);
-  }, [project, graph.nodes, graph.edges]);
+  }, [project, graph.nodes, graph.edges, projectVariables.variables]);
 
   // ── Import ──
   const handleImport = useCallback(() => {
@@ -83,11 +86,18 @@ function EditorContent() {
         return;
       }
 
-      if (!confirm(`${json.nodes.length}개 노드를 가져올까요? 기존 데이터는 삭제됩니다.`)) return;
+      const varCount = json.variables?.length ?? 0;
+      const confirmMsg = varCount > 0
+        ? `${json.nodes.length}개 노드 + ${varCount}개 데이터를 가져올까요? 기존 데이터는 삭제됩니다.`
+        : `${json.nodes.length}개 노드를 가져올까요? 기존 데이터는 삭제됩니다.`;
+      if (!confirm(confirmMsg)) return;
 
       const result = await importProject(projectId!, json);
-      alert(`가져오기 완료: 노드 ${result.nodeCount}개, 연결 ${result.edgeCount}개`);
+      const parts = [`노드 ${result.nodeCount}개`, `연결 ${result.edgeCount}개`];
+      if (result.variableCount > 0) parts.push(`데이터 ${result.variableCount}개`);
+      alert(`가져오기 완료: ${parts.join(', ')}`);
       await graph.reload();
+      await projectVariables.reload();
       setTimeout(() => fitView({ duration: 400 }), 100);
     } catch (err) {
       alert('파일 읽기 실패: ' + (err as Error).message);
@@ -97,15 +107,12 @@ function EditorContent() {
   }, [projectId, graph, fitView]);
 
   // ── 자동 정렬 ──
-  const handleAutoLayout = useCallback(() => {
+  const handleAutoLayout = useCallback(async () => {
     history.pushSnapshot(graph.nodes, graph.edges);
-    const laid = getAutoLayout(graph.nodes, graph.edges);
-    rfSetNodes(laid);
-    for (const node of laid) {
-      graph.updateNodePosition(node.id, node.position.x, node.position.y);
-    }
+    const layoutNodes = await getAutoLayout(graph.nodes, graph.edges);
+    await graph.applyAutoLayout(layoutNodes);
     setTimeout(() => fitView({ duration: 400 }), 50);
-  }, [graph, history, rfSetNodes, fitView]);
+  }, [graph, history, fitView]);
 
   // ── 검증 ──
   const handleValidate = useCallback(() => {
@@ -161,6 +168,14 @@ function EditorContent() {
     setValidationWarnings(null);
   }, []);
 
+  // ── 변수 모달 ──
+  const handleVariables = useCallback(() => {
+    setShowVariables(true);
+    setSelectedNodeId(null);
+    setValidationWarnings(null);
+    setShowSettings(false);
+  }, []);
+
   // ── 키보드 단축키 ──
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -176,6 +191,7 @@ function EditorContent() {
         setSelectedNodeId(null);
         setValidationWarnings(null);
         setShowSettings(false);
+        setShowVariables(false);
       }
     };
 
@@ -187,12 +203,12 @@ function EditorContent() {
     ? graph.nodes.find((n) => n.id === selectedNodeId)
     : null;
 
-  const selectedNodeData = selectedNode?.data as FlowNodeData | undefined;
+  const selectedNodeData = selectedNode?.data as EventNodeData | undefined;
 
   if (!project || graph.loading || roleLoading) {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-4">
-        <img src="/forgi-writing-t.png" alt="Loading" className="h-40 opacity-70 animate-pulse" />
+        <img src="/forgi-thinking-t.png" alt="Loading" className="h-40 opacity-70 animate-pulse" />
         <p className="text-gray-400">로딩중...</p>
       </div>
     );
@@ -211,12 +227,13 @@ function EditorContent() {
 
       <Toolbar
         projectName={project.name}
-        onAddEvent={() => setShowAddModal(true)}
+        onAddEvent={() => { console.log('[DEBUG] +노드 clicked, opening AddEventModal'); setShowAddModal(true); }}
         onExport={handleExport}
         onImport={handleImport}
         onAutoLayout={handleAutoLayout}
         onValidate={handleValidate}
         onSettings={handleSettings}
+        onVariables={handleVariables}
         onUndo={handleUndo}
         onRedo={handleRedo}
         canUndo={history.canUndo && canEdit}
@@ -237,21 +254,10 @@ function EditorContent() {
         {selectedNode && selectedNodeData?.nodeType === 'event' && (
           <EventDetailPanel
             nodeId={selectedNode.id}
-            data={selectedNodeData as EventNodeData}
+            data={selectedNodeData}
+            variableKeys={projectVariables.getByCategory('variable').map((v) => v.key)}
             onSave={handleUpdateNode}
             onSyncChoices={graph.syncChoicesToEdges}
-            onDelete={handleDeleteNode}
-            onClose={() => setSelectedNodeId(null)}
-          />
-        )}
-
-        {selectedNode && selectedNodeData?.nodeType === 'switch' && (
-          <SwitchDetailPanel
-            nodeId={selectedNode.id}
-            data={selectedNodeData as SwitchNodeData}
-            edges={graph.edges}
-            nodes={graph.nodes}
-            onSave={handleUpdateNode}
             onDelete={handleDeleteNode}
             onClose={() => setSelectedNodeId(null)}
           />
@@ -277,6 +283,14 @@ function EditorContent() {
         <AddEventModal
           onSubmit={handleAddNode}
           onClose={() => setShowAddModal(false)}
+        />
+      )}
+
+      {showVariables && (
+        <ProjectVariablesModal
+          projectId={projectId!}
+          variables={projectVariables}
+          onClose={() => setShowVariables(false)}
         />
       )}
 

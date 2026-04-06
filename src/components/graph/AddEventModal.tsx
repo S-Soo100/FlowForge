@@ -1,20 +1,19 @@
 import { useState } from 'react';
-import type { NodeType } from '../../types';
 
 interface Props {
-  onSubmit: (name: string, nodeType: NodeType) => void;
+  onSubmit: (name: string) => void;
   onClose: () => void;
 }
 
 export function AddEventModal({ onSubmit, onClose }: Props) {
+  console.log('[DEBUG] AddEventModal rendered (no switch option)');
   const [name, setName] = useState('');
-  const [nodeType, setNodeType] = useState<NodeType>('event');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const finalName = name.trim();
     if (!finalName) return;
-    onSubmit(finalName, nodeType);
+    onSubmit(finalName);
   };
 
   const canSubmit = !!name.trim();
@@ -28,50 +27,19 @@ export function AddEventModal({ onSubmit, onClose }: Props) {
         className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-bold text-gray-800 mb-4">새 노드 추가</h3>
+        <h3 className="text-lg font-bold text-gray-800 mb-4">새 이벤트 추가</h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* 노드 타입 선택 */}
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              노드 타입
-            </label>
-            <div className="flex gap-2 mt-1">
-              <button
-                type="button"
-                onClick={() => setNodeType('event')}
-                className={`flex-1 py-2 text-sm rounded-lg border-2 transition ${
-                  nodeType === 'event'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700 font-semibold'
-                    : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                }`}
-              >
-                이벤트
-              </button>
-              <button
-                type="button"
-                onClick={() => setNodeType('switch')}
-                className={`flex-1 py-2 text-sm rounded-lg border-2 transition ${
-                  nodeType === 'switch'
-                    ? 'border-amber-500 bg-amber-50 text-amber-700 font-semibold'
-                    : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                }`}
-              >
-                스위치
-              </button>
-            </div>
-          </div>
-
           {/* 이름 */}
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              {nodeType === 'event' ? '이벤트 이름' : '스위치 이름'}
+              이벤트 이름
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={nodeType === 'event' ? '예: 촌장 첫 만남' : '예: 선택 분기'}
+              placeholder="예: 촌장 첫 만남"
               autoFocus
               className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -81,11 +49,7 @@ export function AddEventModal({ onSubmit, onClose }: Props) {
             <button
               type="submit"
               disabled={!canSubmit}
-              className={`flex-1 py-2 text-white rounded-lg disabled:opacity-50 transition ${
-                nodeType === 'switch'
-                  ? 'bg-amber-500 hover:bg-amber-600'
-                  : 'bg-blue-600 hover:bg-blue-700'
-              }`}
+              className="flex-1 py-2 text-white rounded-lg disabled:opacity-50 transition bg-blue-600 hover:bg-blue-700"
             >
               추가
             </button>
