@@ -41,17 +41,6 @@ function centerOff(i: number, n: number): number {
 
 const R = 8;
 
-/** 둥근 꺾임: from (x,y) 수직→수평, dir=수평방향(±1) */
-function cornerVH(x: number, y: number, dir: number, r: number): string {
-  return `L ${x} ${y - r} Q ${x} ${y} ${x + dir * r} ${y}`;
-}
-
-/** 둥근 꺾임: from (x,y) 수평→수직, vdir=수직방향(±1) */
-function cornerHV(x: number, y: number, vdir: number, r: number): string {
-  const hdir = x > 0 ? -1 : 1; // 이건 사용 안 함, 아래에서 직접 제어
-  return `L ${x} ${y} Q ${x} ${y} ${x} ${y + vdir * r}`;
-}
-
 export function EdgeWithLabel({
   id,
   source,

@@ -1,5 +1,6 @@
 import ELK, { type ElkNode } from 'elkjs/lib/elk.bundled.js';
 import type { Node, Edge } from '@xyflow/react';
+import type { FlowNodeData } from '../types';
 
 const elk = new ELK();
 
@@ -7,9 +8,9 @@ const NODE_WIDTH = 200;
 const NODE_HEIGHT = 100;
 
 export async function getAutoLayout(
-  nodes: Node[],
+  nodes: Node<FlowNodeData>[],
   edges: Edge[],
-): Promise<Node[]> {
+): Promise<Node<FlowNodeData>[]> {
   const elkGraph: ElkNode = {
     id: 'root',
     layoutOptions: {
