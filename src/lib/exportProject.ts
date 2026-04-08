@@ -1,5 +1,5 @@
 import type { Node, Edge } from '@xyflow/react';
-import type { ExportedProject, ExportedNode, ExportedVariable, FlowNodeData, EventNodeData, ProjectVariable } from '../types';
+import type { ExportedProject, ExportedNode, ExportedMemo, ExportedVariable, FlowNodeData, EventNodeData, MemoNodeData, ProjectVariable } from '../types';
 
 export function exportProject(
   projectName: string,
@@ -8,9 +8,13 @@ export function exportProject(
   edges: Edge[],
   variables?: ProjectVariable[],
 ): ExportedProject {
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  // 이벤트 노드와 메모 노드 분리
+  const eventNodes = nodes.filter((n) => n.type !== 'memoNode');
+  const memoNodes = nodes.filter((n) => n.type === 'memoNode');
 
-  const exportedNodes: ExportedNode[] = nodes.map((node) => {
+  const nodeMap = new Map(eventNodes.map((n) => [n.id, n]));
+
+  const exportedNodes: ExportedNode[] = eventNodes.map((node) => {
     const data = node.data as unknown as EventNodeData;
     const outEdges = edges.filter((e) => e.source === node.id);
 
@@ -28,13 +32,19 @@ export function exportProject(
         const targetData = targetNode?.data as unknown as FlowNodeData | undefined;
         return {
           target: e.target,
-          targetDisplayId: targetData?.displayId,
-          targetName: targetData?.label,
+          targetDisplayId: (targetData as EventNodeData | undefined)?.displayId,
+          targetName: (targetData as EventNodeData | undefined)?.label,
           label: (e.label as string) || undefined,
         };
       }),
     };
   });
+
+  const exportedMemos: ExportedMemo[] = memoNodes.map((n) => ({
+    id: n.id,
+    text: (n.data as unknown as MemoNodeData).text,
+    position: n.position,
+  }));
 
   // 변수/배경/캐릭터
   const exportedVariables: ExportedVariable[] | undefined =
@@ -56,6 +66,7 @@ export function exportProject(
     },
     nodes: exportedNodes,
     variables: exportedVariables,
+    memos: exportedMemos.length > 0 ? exportedMemos : undefined,
   };
 }
 

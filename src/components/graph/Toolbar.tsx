@@ -2,6 +2,7 @@ import { SearchBar } from './SearchBar';
 
 interface Props {
   onAddEvent: () => void;
+  onAddMemo: () => void;
   onExport: () => void;
   onImport: () => void;
   onAutoLayout: () => void;
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export function Toolbar({
-  onAddEvent, onExport, onImport, onAutoLayout, onValidate, onSettings, onVariables,
+  onAddEvent, onAddMemo, onExport, onImport, onAutoLayout, onValidate, onSettings, onVariables,
   onUndo, onRedo, canUndo, canRedo, isReadOnly,
   projectName, onBack,
 }: Props) {
@@ -57,12 +58,21 @@ export function Toolbar({
         <div className="w-px h-6 bg-gray-200" />
 
         {!isReadOnly && (
-          <button
-            onClick={onAddEvent}
-            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
-          >
-            + 이벤트
-          </button>
+          <>
+            <button
+              onClick={onAddEvent}
+              className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
+            >
+              + 이벤트
+            </button>
+            <button
+              onClick={onAddMemo}
+              className="px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 transition"
+              title="메모 추가 (M)"
+            >
+              📝 메모
+            </button>
+          </>
         )}
         <button
           onClick={onAutoLayout}

@@ -1,5 +1,5 @@
 // ── 노드 타입 ──
-export type NodeType = 'event';
+export type NodeType = 'event' | 'memo';
 
 // ── 이벤트 진행 블럭 ──
 export interface ProgressionBlock {
@@ -66,7 +66,15 @@ export interface EventNodeData {
   [key: string]: unknown;
 }
 
-export type FlowNodeData = EventNodeData;
+// ── 메모 노드 data ──
+export interface MemoNodeData {
+  text: string;
+  nodeType: 'memo';
+  dbId: string;
+  [key: string]: unknown;
+}
+
+export type FlowNodeData = EventNodeData | MemoNodeData;
 
 // ── 프로젝트 ──
 export type ProjectRole = 'editor' | 'viewer';
@@ -114,6 +122,12 @@ export interface ExportedVariable {
   file_name?: string;
 }
 
+export interface ExportedMemo {
+  id: string;
+  text: string;
+  position: { x: number; y: number };
+}
+
 export interface ExportedProject {
   project: {
     name: string;
@@ -122,6 +136,7 @@ export interface ExportedProject {
   };
   nodes: ExportedNode[];
   variables?: ExportedVariable[];
+  memos?: ExportedMemo[];
 }
 
 // ── 프로젝트 변수 ──

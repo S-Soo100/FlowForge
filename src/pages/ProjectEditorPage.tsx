@@ -32,6 +32,7 @@ function EditorContent() {
   const [showVariables, setShowVariables] = useState(false);
   const [validationWarnings, setValidationWarnings] = useState<ValidationWarning[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mousePositionRef = useRef({ x: 0, y: 0 });
 
   const graph = useEventGraph(projectId!);
   const history = useHistory();
@@ -47,6 +48,15 @@ function EditorContent() {
       .then(({ data }) => setProject(data as Project));
   }, [projectId]);
 
+  // ── 마우스 위치 추적 (M 단축키용) ──
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      mousePositionRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener('mousemove', handler);
+    return () => window.removeEventListener('mousemove', handler);
+  }, []);
+
   // ── 노드 추가 ──
   const handleAddNode = useCallback(async (name: string) => {
     console.log('[DEBUG] handleAddNode called', { name, showAddModal });
@@ -60,6 +70,17 @@ function EditorContent() {
     await graph.addNode(name, 'event', x, y);
     setShowAddModal(false);
   }, [graph, history, screenToFlowPosition]);
+
+  // ── 메모 추가 (툴바 버튼용 — 화면 중앙) ──
+  const handleAddMemo = useCallback(async () => {
+    if (!canEdit) return;
+    history.pushSnapshot(graph.nodes, graph.edges);
+    const centerPos = screenToFlowPosition({
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+    });
+    await graph.addMemo(centerPos.x, centerPos.y);
+  }, [graph, history, screenToFlowPosition, canEdit]);
 
   // ── Export ──
   const handleExport = useCallback(() => {
@@ -141,10 +162,13 @@ function EditorContent() {
 
   // ── 노드 더블클릭 ──
   const handleNodeDoubleClick = useCallback((nodeId: string) => {
+    // 메모 노드는 인라인 편집이므로 디테일 패널 열지 않음
+    const node = graph.nodes.find((n) => n.id === nodeId);
+    if (node?.type === 'memoNode') return;
     setSelectedNodeId(nodeId);
     setValidationWarnings(null);
     setShowSettings(false);
-  }, []);
+  }, [graph.nodes]);
 
   // ── 노드 삭제 (히스토리 포함) ──
   const handleDeleteNode = useCallback(async (nodeId: string) => {
@@ -193,11 +217,20 @@ function EditorContent() {
         setShowSettings(false);
         setShowVariables(false);
       }
+      // M 키 → 마우스 위치에 메모 생성
+      if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey) {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+        if (!canEdit) return;
+        e.preventDefault();
+        const pos = screenToFlowPosition(mousePositionRef.current);
+        history.pushSnapshot(graph.nodes, graph.edges);
+        graph.addMemo(pos.x, pos.y);
+      }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleUndo, handleRedo]);
+  }, [handleUndo, handleRedo, canEdit, screenToFlowPosition, graph, history]);
 
   const selectedNode = selectedNodeId
     ? graph.nodes.find((n) => n.id === selectedNodeId)
@@ -228,6 +261,7 @@ function EditorContent() {
       <Toolbar
         projectName={project.name}
         onAddEvent={() => { console.log('[DEBUG] +노드 clicked, opening AddEventModal'); setShowAddModal(true); }}
+        onAddMemo={handleAddMemo}
         onExport={handleExport}
         onImport={handleImport}
         onAutoLayout={handleAutoLayout}

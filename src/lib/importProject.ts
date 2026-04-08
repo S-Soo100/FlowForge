@@ -82,5 +82,24 @@ export async function importProject(
     }
   }
 
-  return { nodeCount: json.nodes.length, edgeCount, variableCount };
+  // 메모 삽입
+  let memoCount = 0;
+  if (json.memos && json.memos.length > 0) {
+    for (const m of json.memos) {
+      await supabase.from('nodes').insert({
+        project_id: projectId,
+        node_type: 'memo',
+        name: 'memo',
+        display_id: `M${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        position_x: m.position.x,
+        position_y: m.position.y,
+        summary: '',
+        detail: '',
+        node_data: { text: m.text },
+      });
+      memoCount++;
+    }
+  }
+
+  return { nodeCount: json.nodes.length, edgeCount, variableCount, memoCount };
 }

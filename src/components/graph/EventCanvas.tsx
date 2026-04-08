@@ -13,6 +13,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { EventNode } from './EventNode';
+import { MemoNode } from './MemoNode';
 import { EdgeWithLabel } from './EdgeWithLabel';
 import { NodeContextMenu } from './NodeContextMenu';
 import { ChoiceSelectPopup } from './ChoiceSelectPopup';
@@ -37,8 +38,14 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
   const nodeTypes: NodeTypes = useMemo(
     () => ({
       eventNode: EventNode,
+      memoNode: (props) => (
+        <MemoNode
+          {...props}
+          data={{ ...props.data, onTextChange: graph.updateMemoText }}
+        />
+      ),
     }),
-    []
+    [graph.updateMemoText]
   );
 
   const edgeTypes: EdgeTypes = useMemo(
@@ -114,7 +121,7 @@ export function EventCanvas({ graph, onNodeDoubleClick }: Props) {
         <Background gap={20} size={1} />
         <Controls />
         <MiniMap
-          nodeColor="#3b82f6"
+          nodeColor={(node) => node.type === 'memoNode' ? '#fbbf24' : '#3b82f6'}
           className="!bg-white !border-gray-200"
         />
       </ReactFlow>

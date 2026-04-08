@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Node, Edge, OnNodesChange, OnEdgesChange, OnConnect } from '@xyflow/react';
 import { applyNodeChanges, applyEdgeChanges } from '@xyflow/react';
 import { supabase } from '../lib/supabase';
-import type { GameNode, GameEdge, NodeType, EventNodeData, FlowNodeData, ProgressionBlock, ChoicesData, ConditionGroup } from '../types';
+import type { GameNode, GameEdge, NodeType, EventNodeData, MemoNodeData, FlowNodeData, ProgressionBlock, ChoicesData, ConditionGroup } from '../types';
 
 // 하위호환 정규화: string[] (레거시) 또는 ChoicesData 모두 처리
 function normalizeChoices(raw: unknown): ChoicesData | null {
@@ -44,6 +44,20 @@ export function useEventGraph(projectId: string) {
     const dbEdges: GameEdge[] = edgesRes.data ?? [];
 
     const flowNodes = dbNodes.map((n) => {
+      if (n.node_type === 'memo') {
+        const data: MemoNodeData = {
+          text: (n.node_data?.text as string) ?? '',
+          nodeType: 'memo',
+          dbId: n.id,
+        };
+        return {
+          id: n.id,
+          type: 'memoNode',
+          position: { x: n.position_x, y: n.position_y },
+          data,
+        };
+      }
+
       const data: FlowNodeData = {
         label: n.name,
         displayId: n.display_id,
@@ -217,6 +231,57 @@ export function useEventGraph(projectId: string) {
     []
   );
 
+  // ── 메모 노드 추가 ──
+  const addMemo = useCallback(
+    async (x: number, y: number) => {
+      const { data, error } = await supabase
+        .from('nodes')
+        .insert({
+          project_id: projectId,
+          node_type: 'memo',
+          name: 'memo',
+          display_id: `M${Date.now()}`,
+          position_x: x,
+          position_y: y,
+          summary: '',
+          detail: '',
+          node_data: { text: '' },
+        })
+        .select()
+        .single();
+
+      if (error || !data) throw error;
+      const n = data as GameNode;
+
+      setNodes((nds) => [
+        ...nds,
+        {
+          id: n.id,
+          type: 'memoNode',
+          position: { x: n.position_x, y: n.position_y },
+          data: { text: '', nodeType: 'memo', dbId: n.id } as MemoNodeData,
+        },
+      ]);
+      return n;
+    },
+    [projectId]
+  );
+
+  // ── 메모 텍스트 업데이트 ──
+  const updateMemoText = useCallback(async (nodeId: string, text: string) => {
+    await supabase
+      .from('nodes')
+      .update({ node_data: { text }, updated_at: new Date().toISOString() })
+      .eq('id', nodeId);
+
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.id !== nodeId || (n.data as MemoNodeData).nodeType !== 'memo') return n;
+        return { ...n, data: { ...n.data, text } };
+      })
+    );
+  }, []);
+
   // ── 엣지 연결 (중복 방지 + 선택지 팝업) ──
   const onConnect: OnConnect = useCallback(
     async (params) => {
@@ -374,8 +439,10 @@ export function useEventGraph(projectId: string) {
     onEdgesChange,
     onConnect,
     addNode,
+    addMemo,
     deleteNode,
     updateNode,
+    updateMemoText,
     updateNodePosition,
     updateEdgeLabel,
     deleteEdge,
